@@ -1,0 +1,8 @@
+.env
+.venv
+
+preview.png
+
+.DS_Store
+
+__pycache__/

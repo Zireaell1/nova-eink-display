@@ -1,0 +1,5 @@
+-r requirements-base.txt
+
+colorzero==2.0
+gpiozero==2.0.1
+spidev==3.8
