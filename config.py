@@ -25,6 +25,7 @@ QUERIES = {
     "cpu": '100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)',
     "mem": '100 * (1 - ((node_memory_MemFree_bytes + node_memory_Cached_bytes + node_memory_Buffers_bytes) / node_memory_MemTotal_bytes))',
     "ups_charge": 'ups_battery_charge',
+    "uptime": 'time() - node_boot_time_seconds',
 }
 
 ALERT_RULES = {
