@@ -16,10 +16,10 @@ class Theme:
             return ImageFont.load_default()
 
     def __init__(self):
-        self.title = self.load_font("DejaVuSans-Bold.ttf", 16)
-        self.mono = self.load_font("DejaVuSansMono.ttf", 12)
-        self.mono_sm = self.load_font("DejaVuSansMono.ttf", 10)
-        self.mono_lg = self.load_font("DejaVuSansMono.ttf", 18)
+        self.title = self.load_font("slkscr.ttf", 16)
+        self.mono = self.load_font("slkscr.ttf", 8)
+        self.mono_sm = self.load_font("slkscr.ttf", 8)
+        self.mono_lg = self.load_font("slkscr.ttf", 8)
 
 theme = Theme()
 
