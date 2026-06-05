@@ -6,3 +6,6 @@ preview.png
 .DS_Store
 
 __pycache__/
+
+fonts/
+icons/
