@@ -28,15 +28,26 @@ class BaseScreen:
         self.width = width
         self.height = height
 
-    def draw_terminal_header(self, draw, title: str = "root@homelab:~#", invert: bool = False):
+    def draw_header(self, draw, title: str = "root@nova:~#", invert: bool = False):
         now = datetime.datetime.now().strftime("%H:%M")
 
         bg_color = 255 if invert else 0
         fg_color = 0 if invert else 255
 
-        draw.rectangle((0, 0, self.width, 18), fill=bg_color)
+        draw.rectangle((0, 0, self.width, 16), fill=bg_color)
 
-        draw.text((4, 2), title, font=theme.mono, fill=fg_color)
+        draw.text((4, 8), title, font=theme.mono_sm, fill=fg_color, anchor="lm")
 
-        tw = draw.textlength(now, font=theme.mono)
-        draw.text((self.width - tw - 4, 2), now, font=theme.mono, fill=fg_color)
+        draw.text((self.width - 4, 8), now, font=theme.mono_sm, fill=fg_color, anchor="rm")
+
+    def draw_footer(self, draw, ups_val: float, uptime: str = ""):
+        ups_status = "OK" if ups_val > 90 else "WARN"
+        left_text = f"UPS:[{ups_status}] {int(ups_val)}%"
+        right_text = f"UP: {uptime}"
+
+        draw.rectangle((0, 112, self.width, 128), fill=255)
+        draw.line((0, 112, self.width, 112), fill=0, width=1) 
+
+        draw.text((4, 120), left_text, font=theme.mono_sm, fill=0, anchor="lm")
+        
+        draw.text((self.width - 4, 120), right_text, font=theme.mono_sm, fill=0, anchor="rm")

@@ -1,75 +1,70 @@
+from PIL import Image
 from .base_screen import BaseScreen, theme
-from config import QUERIES, HISTORY_LENGTH
 
 class MainScreen(BaseScreen):
     def __init__(self, width, height):
         super().__init__(width, height)
-        self.history = {k: [] for k in QUERIES.keys()}
+        
+        self.char_image = None
+        image_path = "assets/icons/character_sleepy.png"
+        
+        try:
+            self.char_image = Image.open(image_path).convert('1', dither=Image.Dither.NONE)
+        except Exception as e:
+            print(f"Warning: Could not load character image at {image_path}. {e}")
 
-    def update_history(self, stats):
-        for k in self.history.keys():
-            val = stats.get(k, 0)
-            self.history[k].append(val)
-            if len(self.history[k]) > HISTORY_LENGTH:
-                self.history[k].pop(0)
+    def format_uptime(self, seconds):
+        days = int(seconds // 86400)
+        hours = int((seconds % 86400) // 3600)
+        
+        if days > 0:
+            return f"{days}d {hours}h"
+        else:
+            return f"{hours}h"
 
-    def draw_block_bar(self, draw, x, y, value, max_val=100, blocks=20):
+
+    def draw_block_bar(self, draw, x, y, value, max_val=100, width=112):
+        draw.rectangle((x, y, x + width, y + 6), outline=0)
+        
         ratio = max(0.0, min(1.0, value / max_val))
-        filled_blocks = int(ratio * blocks)
-        bar_str = "[" + ("■" * filled_blocks) + ("-" * (blocks - filled_blocks)) + "]"
-        draw.text((x, y), bar_str, font=theme.mono, fill=0)
-
-    def draw_sparkline(self, draw, x, y, w, h, data_key, max_val=100):
-        points = self.history.get(data_key, [])
-        if len(points) < 2: 
-            return
-
-        step = w / (len(points) - 1)
-        coords = []
+        filled_width = int(ratio * width)
         
-        for i, val in enumerate(points):
-            py = y + h - (min(val, max_val) / max_val * h)
-            coords.append((x + i * step, py))
-        
-        draw.line(coords, fill=0, width=2)
-        draw.rectangle((x-1, y-1, x+w+1, y+h+1), outline=0)
+        draw.rectangle((x + 1, y + 1, x + filled_width, y + 5), fill=0)
 
     def draw(self, base_image, draw_buffer, data):
-        # 1. Header
-        self.draw_terminal_header(draw_buffer)
+        # Background Art
+        if self.char_image:
+            base_image.paste(self.char_image, (136, 16))
+        else:
+            draw_buffer.rectangle((136, 16, 295, 112), outline=0)
+            draw_buffer.text((160, 60), "IMG MISSING", font=theme.mono_sm, fill=0)
+
+        # Header
+        self.draw_header(draw_buffer)
         
-        # 2. Handle API Errors overlay
         if data.get('error'):
             draw_buffer.text((10, 30), f"SYS_ERR: {data['error']}", font=theme.mono, fill=0)
             return
 
         stats = data.get('stats', {})
-        y_offset = 25
+        COL_START = 4
         
-        # 3. CPU Bar
+        # CPU Stats
         cpu_val = stats.get('cpu', 0)
-        draw_buffer.text((4, y_offset), f"CPU {int(cpu_val):02d}%", font=theme.mono, fill=0)
-        self.draw_block_bar(draw_buffer, 75, y_offset, cpu_val, blocks=22)
+        cpu_text = f"CPU > {int(cpu_val):02d}%"
+        draw_buffer.text((COL_START, 26), cpu_text, font=theme.mono, fill=0)
+        draw_buffer.text((COL_START + 1, 26), cpu_text, font=theme.mono, fill=0)
+        self.draw_block_bar(draw_buffer, COL_START, 38, cpu_val)
         
-        # 4. RAM Bar
-        y_offset += 16
+        # RAM Stats
         mem_val = stats.get('mem', 0)
-        draw_buffer.text((4, y_offset), f"MEM {int(mem_val):02d}%", font=theme.mono, fill=0)
-        self.draw_block_bar(draw_buffer, 75, y_offset, mem_val, blocks=22)
+        mem_text = f"MEM > {int(mem_val):02d}%"
+        draw_buffer.text((COL_START, 66), mem_text, font=theme.mono, fill=0)
+        draw_buffer.text((COL_START + 1, 66), mem_text, font=theme.mono, fill=0)
+        self.draw_block_bar(draw_buffer, COL_START, 78, mem_val)
 
-        # 5. History Sparklines
-        y_offset += 24
-        draw_buffer.text((4, y_offset), "CPU_HIST", font=theme.mono_sm, fill=0)
-        self.draw_sparkline(draw_buffer, 4, y_offset + 12, 135, 15, 'cpu')
-
-        draw_buffer.text((150, y_offset), "MEM_HIST", font=theme.mono_sm, fill=0)
-        self.draw_sparkline(draw_buffer, 150, y_offset + 12, 135, 15, 'mem')
-
-        # 6. Status Footer
-        y_offset += 38
-        draw_buffer.line((0, y_offset, self.width, y_offset), fill=0, width=1) 
-        y_offset += 4
-        
+        # Footer
         ups_val = stats.get('ups_charge', 0)
-        ups_status = "OK " if ups_val > 90 else "WARN"
-        draw_buffer.text((4, y_offset), f"UPS_PWR : [{ups_status}] {int(ups_val):03d}%", font=theme.mono, fill=0)
+        uptime_seconds = stats.get('uptime', 0)
+        formatted_uptime = self.format_uptime(uptime_seconds)
+        self.draw_footer(draw_buffer, ups_val, formatted_uptime)

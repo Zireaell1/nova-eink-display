@@ -100,8 +100,6 @@ def main():
                 screen_alert.draw(image, draw, active_alerts)
                 force_full_refresh = True 
             else:
-                if stats:
-                    screen_main.update_history(stats)
                 screen_main.draw(image, draw, data)
                 force_full_refresh = False
 

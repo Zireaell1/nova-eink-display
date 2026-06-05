@@ -2,7 +2,7 @@ from .base_screen import BaseScreen, theme
 
 class AlertScreen(BaseScreen):
     def draw(self, base_image, draw_buffer, alerts):
-        self.draw_terminal_header(draw_buffer, title="[!_SYS_FAULT_!]", invert=True)
+        self.draw_header(draw_buffer, title="[!_SYS_FAULT_!]", invert=True)
         
         draw_buffer.text((4, 25), "CRITICAL ALERTS DETECTED:", font=theme.title, fill=0)
         draw_buffer.line((0, 45, self.width, 45), fill=0, width=2)
