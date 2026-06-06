@@ -9,7 +9,7 @@ LIB_DIR = os.path.join(BASE_DIR, 'lib')
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 
 FONT_DIR = os.path.join(ASSETS_DIR, "fonts")
-ICON_DIR = os.path.join(ASSETS_DIR, "icons")
+IMAGES_DIR = os.path.join(ASSETS_DIR, "images")
 
 PROMETHEUS_URL = f"https://{os.getenv("PROMETHEUS_SUBDOMAIN", "")}.{os.getenv("PROMETHEUS_DOMAIN", "")}"
 PROMETHEUS_API_USERNAME = os.getenv("PROMETHEUS_API_USERNAME", "")

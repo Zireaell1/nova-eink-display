@@ -52,7 +52,7 @@ def main():
     signal.signal(signal.SIGTERM, handle_exit)
     signal.signal(signal.SIGINT, handle_exit)
 
-    logging.info("Booting Homelab Terminal...")
+    logging.info("Starting dashboard...")
 
     # Hardware / Simulation Setup
     if SIMULATE_MODE:
