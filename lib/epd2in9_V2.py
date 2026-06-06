@@ -28,6 +28,8 @@
 # -----------------------------------------------------------------------------
 #
 # Refactored for readability
+# https://github.com/waveshareteam/e-Paper/blob/master/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epd2in9_V2.py
+#
 
 import logging
 from typing import List, Optional

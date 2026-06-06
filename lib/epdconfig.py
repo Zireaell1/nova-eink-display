@@ -28,6 +28,8 @@
 # -----------------------------------------------------------------------------
 #
 # Refactored for readability
+# https://github.com/waveshareteam/e-Paper/blob/master/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epdconfig.py
+#
 
 import logging
 import spidev # type: ignore
