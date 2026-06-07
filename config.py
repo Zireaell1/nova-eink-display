@@ -1,7 +1,11 @@
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    print("Running in dev mode (dotenv loaded)")
+except ImportError:
+    print("Running in production mode (using system environment variables)")
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 LIB_DIR = os.path.join(BASE_DIR, 'lib')
