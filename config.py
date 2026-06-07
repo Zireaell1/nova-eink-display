@@ -17,15 +17,16 @@ PROMETHEUS_API_PASSWORD = os.getenv("PROMETHEUS_API_PASSWORD", "")
 
 FETCH_INTERVAL = int(os.getenv("FETCH_INTERVAL", "30"))
 FULL_REFRESH_CYCLE = int(os.getenv("FULL_REFRESH_CYCLE", "10"))
-HISTORY_LENGTH = int(os.getenv("HISTORY_LENGTH", "40"))
 
 SIMULATE_MODE = os.getenv("SIMULATE", "false").lower() == "true"
 
+INSTANCE = os.getenv("INSTANCE", "")
+
 QUERIES = {
-    "cpu": '100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100)',
-    "mem": '100 * (1 - ((node_memory_MemFree_bytes + node_memory_Cached_bytes + node_memory_Buffers_bytes) / node_memory_MemTotal_bytes))',
-    "ups_charge": 'ups_battery_charge',
-    "uptime": 'time() - node_boot_time_seconds',
+    "cpu": f'100 - (avg(rate(node_cpu_seconds_total{{mode="idle", instance="{INSTANCE}"}}[5m])) * 100)',
+    "mem": f'(1 - (node_memory_MemAvailable_bytes{{instance="{INSTANCE}"}} / node_memory_MemTotal_bytes{{instance="{INSTANCE}"}})) * 100',
+    "ups_charge": f'ups_battery_charge{{instance="{INSTANCE}"}}',
+    "uptime": f'time() - node_boot_time_seconds{{instance="{INSTANCE}"}}',
 }
 
 ALERT_RULES = {
