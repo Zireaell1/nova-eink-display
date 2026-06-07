@@ -25,7 +25,7 @@ INSTANCE = os.getenv("INSTANCE", "")
 QUERIES = {
     "cpu": f'100 - (avg(rate(node_cpu_seconds_total{{mode="idle", instance="{INSTANCE}"}}[5m])) * 100)',
     "mem": f'(1 - (node_memory_MemAvailable_bytes{{instance="{INSTANCE}"}} / node_memory_MemTotal_bytes{{instance="{INSTANCE}"}})) * 100',
-    "ups_charge": f'ups_battery_charge{{instance="{INSTANCE}"}}',
+    "ups_charge": 'ups_battery_charge',
     "uptime": f'time() - node_boot_time_seconds{{instance="{INSTANCE}"}}',
 }
 
