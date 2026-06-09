@@ -7,7 +7,9 @@ try:
 except ImportError:
     print("Running in production mode (using system environment variables)")
 
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+MAIN_DIR = os.path.dirname(os.path.realpath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(MAIN_DIR))
+
 LIB_DIR = os.path.join(BASE_DIR, 'lib')
 
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
