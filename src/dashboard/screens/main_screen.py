@@ -34,7 +34,7 @@ class MainScreen(BaseScreen):
         if reaction_state in self.image_cache:
             return self.image_cache[reaction_state]
 
-        specific_path = os.path.join(IMAGES_DIR, f"character_{reaction_state}.png")
+        specific_path = os.path.join(IMAGES_DIR, f"character-{reaction_state}.png")
         default_path = os.path.join(IMAGES_DIR, self.default_char)
 
         path_to_load = None
