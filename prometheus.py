@@ -27,29 +27,42 @@ class PrometheusClient:
             data = resp.json()
             result = data.get("data", {}).get("result", [])
             
-            if result and len(result) > 0:
-                val_str = result[0].get("value", [0, "0"])[1]
-                return float(val_str)
-            return 0.0
+            if not result:
+                return None, "No data"
             
-        except requests.exceptions.HTTPError as e:
-            logging.error(f"Prometheus Auth/HTTP Error: {e}")
-            return None
+            val_str = result[0].get("value", [0, "0"])[1]
+            return float(val_str), None
+            
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Prometheus HTTP/Network Error: {e}")
+            return None, "Unreachable"
         except Exception as e:
             logging.error(f"Prometheus query failed: {e}")
-            return None
+            return None, "Parse Error"
 
     def fetch_all(self):
         results = {}
-        error = False
+        missing_metrics = []
+        server_down = False
         
         for key, q in self.queries.items():
-            val = self.query(q)
-            if val is None:
-                error = True
-            results[key] = val if val is not None else 0.0
+            val, err = self.query(q)
+            
+            if err == "Unreachable":
+                server_down = True
+                break
+            elif err:
+                missing_metrics.append(key)
+            else:
+                results[key] = val
+                
+        error_msg = None
+        if server_down:
+            error_msg = "Prometheus Unreachable"
+        elif missing_metrics:
+            error_msg = f"Missing: {', '.join(missing_metrics)}"
             
         return {
             "stats": results, 
-            "error": "Prometheus Unreachable" if error else None
+            "error": error_msg
         }
