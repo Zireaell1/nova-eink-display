@@ -46,9 +46,10 @@ class MainScreen(BaseScreen):
 
         if path_to_load:
             try:
-                img = Image.open(path_to_load).convert('1', dither=Image.Dither.NONE)
-                self.image_cache[reaction_state] = img
-                return img
+                with Image.open(path_to_load) as temp_img:
+                    img = temp_img.convert('1', dither=Image.Dither.NONE)
+                    self.image_cache[reaction_state] = img
+                    return img
             except Exception as e:
                 logging.warning(f"Could not load image at {path_to_load}. {e}")
 
