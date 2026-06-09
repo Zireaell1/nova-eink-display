@@ -1,5 +1,5 @@
 from PIL import Image, ImageDraw
-from screens import MainScreen, AlertScreen
+from src.dashboard.screens import MainScreen, AlertScreen
 
 class UIRenderer:
     def __init__(self, width, height):

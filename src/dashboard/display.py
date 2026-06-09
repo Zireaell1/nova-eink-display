@@ -28,7 +28,7 @@ class SimulatedDisplay(DisplayDriver):
 
 class EPDDisplay(DisplayDriver):
     def __init__(self):
-        from lib import epd2in9_V2
+        from src.dashboard.lib import epd2in9_V2
         self.epd = epd2in9_V2.EPD()
 
     @property

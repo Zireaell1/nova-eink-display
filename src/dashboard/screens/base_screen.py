@@ -3,7 +3,7 @@ import datetime
 import logging
 from PIL import ImageFont
 
-from config import FONT_DIR
+from src.dashboard.config import FONT_DIR
 
 class Theme:
     @staticmethod

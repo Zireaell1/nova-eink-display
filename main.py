@@ -4,13 +4,13 @@ import time
 import sys
 import signal
 
-from config import (
+from src.dashboard.config import (
     FETCH_INTERVAL, FULL_REFRESH_CYCLE, QUERIES, ALERT_RULES,
     PROMETHEUS_URL, PROMETHEUS_API_USERNAME, PROMETHEUS_API_PASSWORD, SIMULATE_MODE
 )
-from prometheus import PrometheusClient
-from display import EPDDisplay, SimulatedDisplay
-from renderer import UIRenderer
+from src.dashboard.prometheus import PrometheusClient
+from src.dashboard.display import EPDDisplay, SimulatedDisplay
+from src.dashboard.renderer import UIRenderer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
 

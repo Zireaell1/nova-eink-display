@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from PIL import Image
 from .base_screen import BaseScreen, theme
-from config import IMAGES_DIR
+from src.dashboard.config import IMAGES_DIR
 
 class MainScreen(BaseScreen):
     def __init__(self, width, height):
