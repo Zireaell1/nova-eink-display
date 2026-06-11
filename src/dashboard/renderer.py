@@ -8,13 +8,13 @@ class UIRenderer:
         self.main_screen = MainScreen(width, height)
         self.alert_screen = AlertScreen(width, height)
 
-    def render_frame(self, data, active_alerts):
+    def render_frame(self, data, active_alerts, is_blinking=False):
         image = Image.new('1', (self.width, self.height), 255)
         draw = ImageDraw.Draw(image)
 
         if active_alerts:
             self.alert_screen.draw(image, draw, active_alerts)
         else:
-            self.main_screen.draw(image, draw, data)
+            self.main_screen.draw(image, draw, data, is_blinking)
             
         return image

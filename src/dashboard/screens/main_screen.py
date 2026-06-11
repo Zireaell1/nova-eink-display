@@ -10,16 +10,16 @@ class MainScreen(BaseScreen):
     def __init__(self, width, height):
         super().__init__(width, height)
 
-        self.default_char = "character_default.png"
+        self.default_char = "character_happy.png"
 
         self.image_cache = {}
 
     def _determine_reaction(self, stats, sys_error):
         if sys_error:
-            return "panicked"
+            return "disconnected"
 
         if stats.get('ups_charge', 100) < 40 or stats.get('cpu', 0) >= 95:
-            return "panicked"
+            return "concerned" # TODO: panicked
 
         if stats.get('cpu', 0) > 75 or stats.get('mem', 0) > 80:
             return "concerned"
@@ -28,7 +28,7 @@ class MainScreen(BaseScreen):
         if hour >= 22 or hour <= 6:
             return "sleep"
 
-        return "default"
+        return "happy"
 
     def _get_character_image(self, reaction_state):
         if reaction_state in self.image_cache:
@@ -74,16 +74,21 @@ class MainScreen(BaseScreen):
 
         draw.rectangle((x + 1, y + 1, x + filled_width, y + 5), fill=0)
 
-    def draw(self, base_image, draw_buffer, data):
+    def draw(self, base_image, draw_buffer, data, is_blinking=False):
         stats = data.get('stats', {})
         sys_error = data.get('error')
 
         current_mood = self._determine_reaction(stats, sys_error)
+
+        if is_blinking and current_mood == "happy":
+            current_mood = "happy-eyes-closed"
+
         char_image = self._get_character_image(current_mood)
 
         # Background Art
         if char_image:
-            base_image.paste(char_image, (130, 16))
+            paste_x = self.width - char_image.width 
+            base_image.paste(char_image, (paste_x, 16))
         else:
             draw_buffer.rectangle((136, 16, 295, 112), outline=0)
             draw_buffer.text((160, 60), "IMG MISSING", font=theme.mono_sm, fill=0)
@@ -102,14 +107,14 @@ class MainScreen(BaseScreen):
         cpu_text = f"CPU > {int(cpu_val):02d}%"
         draw_buffer.text((COL_START, 26), cpu_text, font=theme.mono, fill=0)
         draw_buffer.text((COL_START + 1, 26), cpu_text, font=theme.mono, fill=0)
-        self.draw_block_bar(draw_buffer, COL_START, 38, cpu_val)
+        self.draw_block_bar(draw_buffer, COL_START, 38, cpu_val, width=118)
 
         # RAM Stats
         mem_val = stats.get('mem', 0)
         mem_text = f"MEM > {int(mem_val):02d}%"
         draw_buffer.text((COL_START, 66), mem_text, font=theme.mono, fill=0)
         draw_buffer.text((COL_START + 1, 66), mem_text, font=theme.mono, fill=0)
-        self.draw_block_bar(draw_buffer, COL_START, 78, mem_val)
+        self.draw_block_bar(draw_buffer, COL_START, 78, mem_val, width=118)
 
         # Footer
         ups_val = stats.get('ups_charge', 0)

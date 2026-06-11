@@ -3,6 +3,7 @@ import logging
 import time
 import sys
 import signal
+import random
 
 from src.dashboard.config import (
     FETCH_INTERVAL, FULL_REFRESH_CYCLE, QUERIES, ALERT_RULES,
@@ -66,13 +67,22 @@ def main():
             if error:
                 active_alerts.insert(0, f"API ERR: {error}")
 
-            image_buffer = ui.render_frame(data, active_alerts)
+            image_buffer = ui.render_frame(data, active_alerts, is_blinking=False)
+            blink_buffer = ui.render_frame(data, active_alerts, is_blinking=True)
             
             force_full = bool(active_alerts) or (refresh_counter % FULL_REFRESH_CYCLE == 0)
             display.render(image_buffer, full_refresh=force_full)
 
             refresh_counter = (refresh_counter + 1) % FULL_REFRESH_CYCLE
-            time.sleep(FETCH_INTERVAL)
+
+            for _ in range(FETCH_INTERVAL):
+                if not active_alerts:
+                    if random.random() < 0.08:
+                        display.render(blink_buffer, full_refresh=False) 
+                        time.sleep(1)
+                        display.render(image_buffer, full_refresh=False) 
+
+                time.sleep(1)
 
         except Exception as e:
             logging.error(f"Main loop exception: {e}")
