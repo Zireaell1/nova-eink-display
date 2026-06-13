@@ -74,6 +74,21 @@ class MainScreen(BaseScreen):
 
         draw.rectangle((x + 1, y + 1, x + filled_width, y + 5), fill=0)
 
+    def draw_status_blocks(self, draw, x, y, services):
+        box_size = 12
+        spacing = 4
+        current_x = x
+
+        for label, is_healthy in services.items():
+            if is_healthy:
+                draw.rectangle((current_x, y, current_x + box_size, y + box_size), outline=0, fill=255)
+                draw.text((current_x + 3, y + 0), label, font=theme.mono_sm, fill=0)
+            else:
+                draw.rectangle((current_x, y, current_x + box_size, y + box_size), outline=0, fill=0)
+                draw.text((current_x + 3, y + 0), label, font=theme.mono_sm, fill=255)
+            
+            current_x += box_size + spacing
+
     def draw_alert_panel(self, draw_buffer, alerts):
         draw_buffer.rectangle((4, 24, 122, 36), fill=0)
         draw_buffer.text((63, 30), "SYS FAULT", font=theme.mono, fill=255, anchor="mm")
@@ -130,14 +145,25 @@ class MainScreen(BaseScreen):
         else:
             COL_START = 4
 
+            # CPU Stats
             cpu_val = stats.get('cpu', 0)
             cpu_text = f"CPU > {int(cpu_val):02d}%"
-            draw_buffer.text((COL_START, 34), cpu_text, font=theme.mono, fill=0)
-            draw_buffer.text((COL_START + 1, 34), cpu_text, font=theme.mono, fill=0)
-            self.draw_block_bar(draw_buffer, COL_START, 46, cpu_val, width=118)
+            draw_buffer.text((COL_START, 26), cpu_text, font=theme.mono, fill=0)
+            draw_buffer.text((COL_START + 1, 26), cpu_text, font=theme.mono, fill=0)
+            self.draw_block_bar(draw_buffer, COL_START, 38, cpu_val, width=118)
 
+            # RAM Stats
             mem_val = stats.get('mem', 0)
             mem_text = f"MEM > {int(mem_val):02d}%"
-            draw_buffer.text((COL_START, 74), mem_text, font=theme.mono, fill=0)
-            draw_buffer.text((COL_START + 1, 74), mem_text, font=theme.mono, fill=0)
-            self.draw_block_bar(draw_buffer, COL_START, 86, mem_val, width=118)
+            draw_buffer.text((COL_START, 58), mem_text, font=theme.mono, fill=0)
+            draw_buffer.text((COL_START + 1, 58), mem_text, font=theme.mono, fill=0)
+            self.draw_block_bar(draw_buffer, COL_START, 70, mem_val, width=118)
+
+            # Service Grid (TODO: test)
+            service_health = {
+                'P': stats.get('podman_up', 1) == 1,
+                'F': stats.get('frigate_up', 1) == 1,
+                'N': stats.get('node_up', 1) == 1
+            }
+            
+            self.draw_status_blocks(draw_buffer, COL_START, 90, service_health)
