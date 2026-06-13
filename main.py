@@ -77,7 +77,7 @@ def main():
 
             for _ in range(FETCH_INTERVAL):
                 if not active_alerts:
-                    if random.random() < 0.08:
+                    if random.random() < 0.12:
                         display.render(blink_buffer, full_refresh=False) 
                         time.sleep(1)
                         display.render(image_buffer, full_refresh=False) 
