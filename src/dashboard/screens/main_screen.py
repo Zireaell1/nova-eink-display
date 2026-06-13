@@ -14,11 +14,11 @@ class MainScreen(BaseScreen):
 
         self.image_cache = {}
 
-    def _determine_reaction(self, stats, sys_error):
+    def _determine_reaction(self, stats, sys_error, active_alerts):
         if sys_error:
             return "disconnected"
-
-        if stats.get('ups_charge', 100) < 40 or stats.get('cpu', 0) >= 95:
+        
+        if active_alerts:
             return "concerned" # TODO: panicked
 
         if stats.get('cpu', 0) > 75 or stats.get('mem', 0) > 80:
@@ -74,11 +74,30 @@ class MainScreen(BaseScreen):
 
         draw.rectangle((x + 1, y + 1, x + filled_width, y + 5), fill=0)
 
-    def draw(self, base_image, draw_buffer, data, is_blinking=False):
+    def draw_alert_panel(self, draw_buffer, alerts):
+        draw_buffer.rectangle((4, 24, 122, 36), fill=0)
+        draw_buffer.text((63, 30), "SYS FAULT", font=theme.mono, fill=255, anchor="mm")
+
+        y_offset = 44
+        max_displayable = 3
+
+        for i, alert in enumerate(alerts):
+            if i >= max_displayable:
+                remaining = len(alerts) - max_displayable
+                draw_buffer.text((4, y_offset), f"+ {remaining} MORE...", font=theme.mono, fill=0)
+                break
+            
+            draw_buffer.text((4, y_offset), f"> {alert[:18]}", font=theme.mono, fill=0)
+            y_offset += 16
+
+    def draw(self, base_image, draw_buffer, data, active_alerts=None, is_blinking=False):
+        if active_alerts is None:
+            active_alerts = []
+
         stats = data.get('stats', {})
         sys_error = data.get('error')
 
-        current_mood = self._determine_reaction(stats, sys_error)
+        current_mood = self._determine_reaction(stats, sys_error, active_alerts)
 
         if is_blinking and current_mood == "happy":
             current_mood = "happy-eyes-closed"
@@ -96,28 +115,29 @@ class MainScreen(BaseScreen):
         # Header
         self.draw_header(draw_buffer)
 
-        if sys_error:
-            draw_buffer.text((10, 30), f"SYS_ERR: {sys_error}", font=theme.mono, fill=0)
-            return
-
-        COL_START = 4
-
-        # CPU Stats
-        cpu_val = stats.get('cpu', 0)
-        cpu_text = f"CPU > {int(cpu_val):02d}%"
-        draw_buffer.text((COL_START, 26), cpu_text, font=theme.mono, fill=0)
-        draw_buffer.text((COL_START + 1, 26), cpu_text, font=theme.mono, fill=0)
-        self.draw_block_bar(draw_buffer, COL_START, 38, cpu_val, width=118)
-
-        # RAM Stats
-        mem_val = stats.get('mem', 0)
-        mem_text = f"MEM > {int(mem_val):02d}%"
-        draw_buffer.text((COL_START, 66), mem_text, font=theme.mono, fill=0)
-        draw_buffer.text((COL_START + 1, 66), mem_text, font=theme.mono, fill=0)
-        self.draw_block_bar(draw_buffer, COL_START, 78, mem_val, width=118)
-
         # Footer
         ups_val = stats.get('ups_charge', 0)
         uptime_seconds = stats.get('uptime', 0)
         formatted_uptime = self.format_uptime(uptime_seconds)
         self.draw_footer(draw_buffer, ups_val, formatted_uptime)
+
+        if sys_error:
+            draw_buffer.text((10, 30), f"SYS_ERR: {sys_error}", font=theme.mono, fill=0)
+            return
+
+        if active_alerts:
+            self.draw_alert_panel(draw_buffer, active_alerts)
+        else:
+            COL_START = 4
+
+            cpu_val = stats.get('cpu', 0)
+            cpu_text = f"CPU > {int(cpu_val):02d}%"
+            draw_buffer.text((COL_START, 34), cpu_text, font=theme.mono, fill=0)
+            draw_buffer.text((COL_START + 1, 34), cpu_text, font=theme.mono, fill=0)
+            self.draw_block_bar(draw_buffer, COL_START, 46, cpu_val, width=118)
+
+            mem_val = stats.get('mem', 0)
+            mem_text = f"MEM > {int(mem_val):02d}%"
+            draw_buffer.text((COL_START, 74), mem_text, font=theme.mono, fill=0)
+            draw_buffer.text((COL_START + 1, 74), mem_text, font=theme.mono, fill=0)
+            self.draw_block_bar(draw_buffer, COL_START, 86, mem_val, width=118)
