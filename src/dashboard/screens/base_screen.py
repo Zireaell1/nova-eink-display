@@ -5,6 +5,8 @@ from PIL import ImageFont
 
 from src.dashboard.config import FONT_DIR
 
+logger = logging.getLogger(__name__)
+
 class Theme:
     @staticmethod
     def load_font(name: str, size: int):
@@ -12,7 +14,7 @@ class Theme:
         try:
             return ImageFont.truetype(path, size)
         except OSError:
-            logging.warning(f"Font '{name}' not found. Falling back to default.")
+            logger.warning(f"Font '{name}' not found. Falling back to default.")
             return ImageFont.load_default()
 
     def __init__(self):

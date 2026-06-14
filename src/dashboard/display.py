@@ -1,5 +1,7 @@
 import logging
 
+logger = logging.getLogger(__name__)
+
 class DisplayDriver:
     def init(self): raise NotImplementedError
     def render(self, image, full_refresh=False): raise NotImplementedError
@@ -17,14 +19,14 @@ class SimulatedDisplay(DisplayDriver):
         return self.w, self.h
 
     def init(self):
-        logging.info("Initialized Simulated Display")
+        logger.info("Initialized Simulated Display")
 
     def render(self, image, full_refresh=False):
         image.save("preview.png")
-        logging.info("Preview updated -> preview.png")
+        logger.debug("Preview updated -> preview.png")
 
     def cleanup(self):
-        logging.info("Cleaned up simulated display.")
+        logger.info("Cleaned up simulated display.")
 
 class EPDDisplay(DisplayDriver):
     def __init__(self):

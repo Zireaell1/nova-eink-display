@@ -2,6 +2,8 @@ import logging
 import requests
 from requests.auth import HTTPBasicAuth
 
+logger = logging.getLogger(__name__)
+
 class PrometheusClient:
     def __init__(self, url, queries, username=None, password=None):
         self.url = url.rstrip('/')
@@ -12,7 +14,7 @@ class PrometheusClient:
         if username and password:
             self.session.auth = HTTPBasicAuth(username, password)
             
-        logging.info(f"PrometheusClient initialized for {self.url} (Auth: {'Yes' if self.session.auth else 'No'})")
+        logger.info(f"PrometheusClient initialized for {self.url} (Auth: {'Yes' if self.session.auth else 'No'})")
 
     def query(self, query_str):
         try:
@@ -34,10 +36,10 @@ class PrometheusClient:
             return float(val_str), None
             
         except requests.exceptions.RequestException as e:
-            logging.error(f"Prometheus HTTP/Network Error: {e}")
+            logger.error(f"Prometheus HTTP/Network Error: {e}")
             return None, "Unreachable"
         except Exception as e:
-            logging.error(f"Prometheus query failed: {e}")
+            logger.error(f"Prometheus query failed: {e}")
             return None, "Parse Error"
 
     def fetch_all(self):

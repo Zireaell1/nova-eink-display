@@ -6,6 +6,8 @@ from PIL import Image
 from .base_screen import BaseScreen, theme
 from src.dashboard.config import IMAGES_DIR
 
+logger = logging.getLogger(__name__)
+
 class MainScreen(BaseScreen):
     def __init__(self, width, height):
         super().__init__(width, height)
@@ -51,7 +53,7 @@ class MainScreen(BaseScreen):
                     self.image_cache[reaction_state] = img
                     return img
             except Exception as e:
-                logging.warning(f"Could not load image at {path_to_load}. {e}")
+                logger.warning(f"Could not load image at {path_to_load}. {e}")
 
         self.image_cache[reaction_state] = None
         return None

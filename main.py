@@ -4,6 +4,22 @@ import time
 import sys
 import signal
 import random
+import os
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+log_level = getattr(logging, log_level_str, logging.INFO)
+
+logging.basicConfig(
+    level=log_level,
+    format='%(asctime)s - [%(levelname)s] - %(name)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 from src.dashboard.config import (
     FETCH_INTERVAL, FULL_REFRESH_CYCLE, QUERIES, ALERT_RULES,
@@ -12,8 +28,6 @@ from src.dashboard.config import (
 from src.dashboard.prometheus import PrometheusClient
 from src.dashboard.display import EPDDisplay, SimulatedDisplay
 from src.dashboard.renderer import UIRenderer
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - [%(levelname)s] - %(message)s')
 
 def evaluate_alerts(stats):
     active_alerts = []
@@ -29,7 +43,7 @@ def evaluate_alerts(stats):
     return active_alerts
 
 def main():
-    logging.info("Starting dashboard...")
+    logger.info("Starting dashboard...")
 
     if SIMULATE_MODE:
         display = SimulatedDisplay()
@@ -37,11 +51,11 @@ def main():
         try:
             display = EPDDisplay()
         except ImportError as e:
-            logging.critical(f"Waveshare library not found: {e}")
+            logger.critical(f"Waveshare library not found: {e}")
             sys.exit(1)
 
     def handle_exit(signum, frame):
-        logging.info("Shutting down...")
+        logger.info("Shutting down...")
         display.cleanup()
         sys.exit(0)
 
@@ -85,7 +99,7 @@ def main():
                 time.sleep(1)
 
         except Exception as e:
-            logging.error(f"Main loop exception: {e}")
+            logger.error(f"Main loop exception: {e}")
             time.sleep(10)
 
 if __name__ == "__main__":
