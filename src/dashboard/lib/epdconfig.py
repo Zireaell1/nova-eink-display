@@ -48,6 +48,7 @@ PWR_PIN  = 18
 class RaspberryPi:
     def __init__(self) -> None:
         self.SPI = spidev.SpiDev()
+        self._spi_is_open = False
 
         self.pin_rst     = LED(RST_PIN)
         self.pin_dc      = LED(DC_PIN)
@@ -89,15 +90,23 @@ class RaspberryPi:
 
     def module_init(self) -> int:
         self.pin_pwr.on()
-        self.SPI.open(0, 0)
-        self.SPI.max_speed_hz = 4000000
-        self.SPI.mode = 0b00
-        logger.debug("[EPDCONFIG] SPI initialized")
+
+        if not self._spi_is_open:
+            self.SPI.open(0, 0)
+            self.SPI.max_speed_hz = 4000000
+            self.SPI.mode = 0b00
+            self._spi_is_open = True
+            logger.debug("[EPDCONFIG] SPI initialized")
+
         return 0
 
     def module_exit(self) -> None:
         logger.debug("[EPDCONFIG] Shutting down SPI and powering off display")
-        self.SPI.close()
+
+        if self._spi_is_open:
+            self.SPI.close()
+            self._spi_is_open = False
+
         self.pin_rst.off()
         self.pin_dc.off()
         self.pin_pwr.off()
