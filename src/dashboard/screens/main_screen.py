@@ -1,8 +1,5 @@
-import os
 import logging
 
-from datetime import datetime
-from PIL import Image
 from .base_screen import BaseScreen, theme
 from src.dashboard.config import IMAGES_DIR
 
@@ -11,52 +8,6 @@ logger = logging.getLogger(__name__)
 class MainScreen(BaseScreen):
     def __init__(self, width, height):
         super().__init__(width, height)
-
-        self.default_char = "character_happy.png"
-
-        self.image_cache = {}
-
-    def _determine_reaction(self, stats, sys_error, active_alerts):
-        if sys_error:
-            return "disconnected"
-        
-        if active_alerts:
-            return "concerned" # TODO: panicked
-
-        if stats.get('cpu', 0) > 75 or stats.get('mem', 0) > 80:
-            return "concerned"
-
-        hour = datetime.now().hour
-        if hour >= 22 or hour <= 6:
-            return "sleep"
-
-        return "happy"
-
-    def _get_character_image(self, reaction_state):
-        if reaction_state in self.image_cache:
-            return self.image_cache[reaction_state]
-
-        specific_path = os.path.join(IMAGES_DIR, f"character-{reaction_state}.png")
-        default_path = os.path.join(IMAGES_DIR, self.default_char)
-
-        path_to_load = None
-
-        if os.path.exists(specific_path):
-            path_to_load = specific_path
-        elif os.path.exists(default_path):
-            path_to_load = default_path
-
-        if path_to_load:
-            try:
-                with Image.open(path_to_load) as temp_img:
-                    img = temp_img.convert('1', dither=Image.Dither.NONE)
-                    self.image_cache[reaction_state] = img
-                    return img
-            except Exception as e:
-                logger.warning(f"Could not load image at {path_to_load}. {e}")
-
-        self.image_cache[reaction_state] = None
-        return None
 
     def format_uptime(self, seconds):
         days = int(seconds // 86400)
@@ -107,27 +58,12 @@ class MainScreen(BaseScreen):
             draw_buffer.text((4, y_offset), f"> {alert[:18]}", font=theme.mono, fill=0)
             y_offset += 16
 
-    def draw(self, base_image, draw_buffer, data, active_alerts=None, is_blinking=False):
+    def draw(self, draw_buffer, data, active_alerts=None):
         if active_alerts is None:
             active_alerts = []
 
         stats = data.get('stats', {})
         sys_error = data.get('error')
-
-        current_mood = self._determine_reaction(stats, sys_error, active_alerts)
-
-        if is_blinking and current_mood == "happy":
-            current_mood = "happy-eyes-closed"
-
-        char_image = self._get_character_image(current_mood)
-
-        # Background Art
-        if char_image:
-            paste_x = self.width - char_image.width 
-            base_image.paste(char_image, (paste_x, 16))
-        else:
-            draw_buffer.rectangle((136, 16, 295, 112), outline=0)
-            draw_buffer.text((160, 60), "IMG MISSING", font=theme.mono_sm, fill=0)
 
         # Header
         self.draw_header(draw_buffer)
