@@ -1,6 +1,7 @@
 import os
 import logging
 from datetime import datetime
+import random
 from PIL import Image
 from src.dashboard.config import IMAGES_DIR
 
@@ -17,15 +18,34 @@ class Character:
         
         if active_alerts:
             return "concerned" # TODO: panicked
+        
+        cpu = stats.get('cpu', 0)
+        mem = stats.get('mem', 0)
 
-        if stats.get('cpu', 0) > 75 or stats.get('mem', 0) > 80:
+        if cpu > 85 or mem > 90:
+            return "working"
+            
+        if cpu > 75 or mem > 80:
             return "concerned"
 
-        hour = datetime.now().hour
-        if hour >= 22 or hour <= 6:
-            return "sleep"
+        if stats.get('uptime', 3600) < 300:
+            return "salute"
 
-        return "happy"
+        now = datetime.now()
+        hour = now.hour
+        
+        if hour >= 23 or hour < 6:
+            return "sleep"
+            
+        if 6 <= hour < 9:
+            return "coffee"
+
+        minute_block = now.minute // 10 
+        seed = f"{now.date()}_{hour}_{minute_block}"
+        mood_picker = random.Random(seed)
+        
+        idle_pool = ["happy", "music", "smug"]
+        return mood_picker.choice(idle_pool)
 
     def _get_image(self, reaction_state):
         if reaction_state in self.image_cache:
@@ -50,6 +70,8 @@ class Character:
 
     def get_current_image(self, stats, sys_error, active_alerts, is_blinking=False):
         mood = self._determine_reaction(stats, sys_error, active_alerts)
+
+        logger.debug(f"Selected mood: {mood}")
 
         if is_blinking and mood == "happy":
             blink_mood = "happy-eyes-closed"
