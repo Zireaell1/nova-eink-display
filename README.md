@@ -15,7 +15,7 @@ I am running this on a Raspberry Pi 5 (8GB) connected to a [Waveshare 2.9" e-Pap
 
 Honestly, a Pi 5 is absolute overkill for this script. I just used it because it was what I already had before I started this project.
 
-The screen and Pi are mounted in my server rack using a custom 3D-printed case, printed in Fiberlogy PETG CF.
+The screen and Pi are mounted in my server rack using a custom 3D-printed case, printed in [Fiberlogy PETG CF](https://fiberlogy.com/en/PETGCF-Filament-1_75mm-0_85kg).
 
 ## Installation
 
