@@ -18,8 +18,6 @@ class UIRenderer:
         stats = data.get('stats', {})
         sys_error = data.get('error')
 
-        self.main_screen.draw(draw, data, active_alerts)
-
         character_image = self.character.get_current_image(stats, sys_error, active_alerts, is_blinking)
 
         if character_image:
@@ -28,5 +26,7 @@ class UIRenderer:
         else:
             draw.rectangle((136, 16, 295, 112), outline=0)
             draw.text((160, 60), "IMG MISSING", font=theme.mono_sm, fill=0)
+
+        self.main_screen.draw(draw, data, active_alerts)
 
         return image
