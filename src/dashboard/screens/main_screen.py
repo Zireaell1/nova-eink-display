@@ -1,4 +1,5 @@
 import logging
+import textwrap
 
 from .base_screen import BaseScreen, theme
 from src.dashboard.config import IMAGES_DIR
@@ -47,15 +48,23 @@ class MainScreen(BaseScreen):
         draw_buffer.text((63, 30), "SYS FAULT", font=theme.mono, fill=255, anchor="mm")
 
         y_offset = 44
-        max_displayable = 3
+        max_lines = 4
 
-        for i, alert in enumerate(alerts):
-            if i >= max_displayable:
-                remaining = len(alerts) - max_displayable
-                draw_buffer.text((4, y_offset), f"+ {remaining} MORE...", font=theme.mono, fill=0)
+        display_lines = []
+        for alert in alerts:
+            wrapped_text = textwrap.wrap(alert, width=14)
+            for i, line in enumerate(wrapped_text):
+                if i == 0:
+                    display_lines.append(f"> {line}")
+                else:
+                    display_lines.append(f"  {line}")
+
+        for i, line in enumerate(display_lines):
+            if i == max_lines - 1 and len(display_lines) > max_lines:
+                draw_buffer.text((4, y_offset), "+ MORE...", font=theme.mono, fill=0)
                 break
-            
-            draw_buffer.text((4, y_offset), f"> {alert[:18]}", font=theme.mono, fill=0)
+
+            draw_buffer.text((4, y_offset), line, font=theme.mono, fill=0)
             y_offset += 16
 
     def draw(self, draw_buffer, data, active_alerts=None):
