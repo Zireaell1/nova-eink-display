@@ -106,11 +106,9 @@ class MainScreen(BaseScreen):
             draw_buffer.text((COL_START + 1, 58), mem_text, font=theme.mono, fill=0)
             self.draw_block_bar(draw_buffer, COL_START, 70, mem_val, width=118)
 
-            # Service Grid (TODO: test)
+            # Service Grid
             service_health = {
-                'P': stats.get('podman_up', 1) == 1,
-                'F': stats.get('frigate_up', 1) == 1,
-                'N': stats.get('node_up', 1) == 1
+                'B': stats.get('backup_status', 1)
             }
             
             self.draw_status_blocks(draw_buffer, COL_START, 90, service_health)

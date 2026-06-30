@@ -26,10 +26,12 @@ QUERIES = {
     "mem": f'(1 - (node_memory_MemAvailable_bytes{{instance="{INSTANCE}"}} / node_memory_MemTotal_bytes{{instance="{INSTANCE}"}})) * 100',
     "ups_charge": 'ups_battery_charge',
     "uptime": f'time() - node_boot_time_seconds{{instance="{INSTANCE}"}}',
+    "backup_status": "homelab_backup_success"
 }
 
 ALERT_RULES = {
     "cpu": (90.0, ">", "CPU Usage CRITICAL"),
     "mem": (90.0, ">", "RAM Usage CRITICAL"),
     "ups_charge": (95.0, "<", "UPS on Battery Power!"),
+    "backup_status": (1, "<", "BACKUP FAILED")
 }
