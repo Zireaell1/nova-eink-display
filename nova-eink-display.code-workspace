@@ -17,5 +17,13 @@
 				"justMyCode": true
 			}
 		]
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-python.vscode-python-envs",
+			"ms-python.vscode-pylance",
+			"ms-python.python",
+			"ms-python.debugpy"
+		]
 	}
 }
