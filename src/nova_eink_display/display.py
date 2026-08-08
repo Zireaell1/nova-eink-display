@@ -40,9 +40,9 @@ class SimulatedDisplay(DisplayDriver):
 
 class EPDDisplay(DisplayDriver):
     def __init__(self):
-        from nova_eink_display.lib import epd2in9_V2
+        from nova_eink_display.lib import epd2in9
 
-        self.epd = epd2in9_V2.EPD()
+        self.epd = epd2in9.EPD()
 
     @property
     def dimensions(self):
