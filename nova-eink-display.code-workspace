@@ -4,15 +4,21 @@
 			"path": "."
 		}
 	],
-	"settings": {},
+	"settings": {
+		"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+		"python.analysis.extraPaths": [
+			"${workspaceFolder}/src"
+		]
+	},
 	"launch": {
 		"version": "0.2.0",
 		"configurations": [
 			{
-				"name": "Launch",
+				"name": "Debug Dashboard",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/main.py",
+				"program": "${workspaceFolder}/src/nova_eink_display/main.py",
+				"envFile": "${workspaceFolder}/.env",
 				"console": "integratedTerminal",
 				"justMyCode": true
 			}
@@ -23,7 +29,8 @@
 			"ms-python.vscode-python-envs",
 			"ms-python.vscode-pylance",
 			"ms-python.python",
-			"ms-python.debugpy"
+			"ms-python.debugpy",
+			"charliermarsh.ruff"
 		]
 	}
 }
