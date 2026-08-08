@@ -1,0 +1,32 @@
+---
+name: Ruff
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install ruff-action
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          src: "./src"
+
+      - name: Run Ruff Linter
+        run: ruff check
+
+      - name: Run Ruff Formatter
+        run: ruff format --check
