@@ -45,8 +45,8 @@ def main():
         try:
             display = EPDDisplay()
         except ImportError as e:
-            logger.critical(f"Waveshare library not found: {e}")
-            sys.exit(1)
+            logger.warning(f"Hardware libraries not found. Forcing SimulatedDisplay. Error: {e}")
+            display = SimulatedDisplay()
 
     def handle_exit(signum, frame):
         logger.info("Shutting down...")
