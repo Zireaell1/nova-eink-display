@@ -32,34 +32,37 @@
 #
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, cast
+
 from PIL import Image
+
 from . import epdconfig
 
 logger = logging.getLogger(__name__)
 
-EPD_WIDTH  = 128
+EPD_WIDTH = 128
 EPD_HEIGHT = 296
 
-GRAY1 = 0xFF # White
-GRAY2 = 0xC0 # Light Gray
-GRAY3 = 0x80 # Dark Gray
-GRAY4 = 0x00 # Blackest
+GRAY1 = 0xFF  # White
+GRAY2 = 0xC0  # Light Gray
+GRAY3 = 0x80  # Dark Gray
+GRAY4 = 0x00  # Blackest
 
-CMD_SW_RESET              = 0x12
-CMD_DRIVER_OUTPUT_CTRL    = 0x01
-CMD_DATA_ENTRY_MODE       = 0x11
-CMD_SET_RAM_X_START_END   = 0x44
-CMD_SET_RAM_Y_START_END   = 0x45
-CMD_SET_RAM_X_ADDR        = 0x4E
-CMD_SET_RAM_Y_ADDR        = 0x4F
-CMD_DISPLAY_UPDATE_CTRL   = 0x21
+CMD_SW_RESET = 0x12
+CMD_DRIVER_OUTPUT_CTRL = 0x01
+CMD_DATA_ENTRY_MODE = 0x11
+CMD_SET_RAM_X_START_END = 0x44
+CMD_SET_RAM_Y_START_END = 0x45
+CMD_SET_RAM_X_ADDR = 0x4E
+CMD_SET_RAM_Y_ADDR = 0x4F
+CMD_DISPLAY_UPDATE_CTRL = 0x21
 CMD_DISPLAY_UPDATE_CTRL_2 = 0x22
-CMD_MASTER_ACTIVATION     = 0x20
-CMD_WRITE_RAM             = 0x24
-CMD_WRITE_RAM_2           = 0x26
-CMD_DEEP_SLEEP            = 0x10
+CMD_MASTER_ACTIVATION = 0x20
+CMD_WRITE_RAM = 0x24
+CMD_WRITE_RAM_2 = 0x26
+CMD_DEEP_SLEEP = 0x10
 
+# fmt: off
 WF_PARTIAL_2IN9 = [
     0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -147,15 +150,17 @@ WF_FULL = [
     0x24, 0x42, 0x22, 0x22, 0x23, 0x32, 0x00, 0x00, 0x00,
     0x22, 0x17, 0x41, 0xAE, 0x32, 0x38,
 ]
+# fmt: on
+
 
 class EPD:
     def __init__(self) -> None:
         self.reset_pin = epdconfig.RST_PIN
-        self.dc_pin    = epdconfig.DC_PIN
-        self.busy_pin  = epdconfig.BUSY_PIN
+        self.dc_pin = epdconfig.DC_PIN
+        self.busy_pin = epdconfig.BUSY_PIN
         # self.cs_pin    = epdconfig.CS_PIN
 
-        self.width  = EPD_WIDTH
+        self.width = EPD_WIDTH
         self.height = EPD_HEIGHT
 
         self.GRAY1 = GRAY1
@@ -191,16 +196,18 @@ class EPD:
 
     def wait_until_idle(self) -> None:
         timeout = 0
-        while(epdconfig.digital_read(self.busy_pin) == 1):
+        while epdconfig.digital_read(self.busy_pin) == 1:
             epdconfig.delay_ms(10)
             timeout += 1
             if timeout > 400:
-                logger.warning("HARDWARE TIMEOUT: e-Paper busy pin is unresponsive. Check GPIO connection!")
+                logger.warning(
+                    "HARDWARE TIMEOUT: e-Paper busy pin is unresponsive. Check GPIO connection!"
+                )
                 break
 
     def TurnOnDisplay(self) -> None:
         self.send_command(CMD_DISPLAY_UPDATE_CTRL_2)
-        self.send_data(0xc7)
+        self.send_data(0xC7)
         self.send_command(CMD_MASTER_ACTIVATION)
         self.wait_until_idle()
 
@@ -220,9 +227,9 @@ class EPD:
         self.send_command(0x03)  # gate voltage
         self.send_data(lut[154])
         self.send_command(0x04)  # source voltage
-        self.send_data(lut[155]) # VSH
-        self.send_data(lut[156]) # VSH2
-        self.send_data(lut[157]) # VSL
+        self.send_data(lut[155])  # VSH
+        self.send_data(lut[156])  # VSH2
+        self.send_data(lut[157])  # VSL
         self.send_command(0x2C)  # VCOM
         self.send_data(lut[158])
 
@@ -246,7 +253,7 @@ class EPD:
     def init(self) -> int:
         if epdconfig.module_init() != 0:
             return -1
-            
+
         self.reset()
         self.wait_until_idle()
         self.send_command(CMD_SW_RESET)
@@ -258,7 +265,7 @@ class EPD:
         self.send_data(0x00)
         self.send_command(CMD_DATA_ENTRY_MODE)
         self.send_data(0x03)
-        self.SetWindow(0, 0, self.width-1, self.height-1)
+        self.SetWindow(0, 0, self.width - 1, self.height - 1)
         self.send_command(CMD_DISPLAY_UPDATE_CTRL)
         self.send_data(0x00)
         self.send_data(0x80)
@@ -282,7 +289,7 @@ class EPD:
         self.send_data(0x00)
         self.send_command(CMD_DATA_ENTRY_MODE)
         self.send_data(0x03)
-        self.SetWindow(0, 0, self.width-1, self.height-1)
+        self.SetWindow(0, 0, self.width - 1, self.height - 1)
         self.send_command(0x3C)
         self.send_data(0x05)
         self.send_command(CMD_DISPLAY_UPDATE_CTRL)
@@ -302,7 +309,7 @@ class EPD:
         self.wait_until_idle()
         self.send_command(CMD_SW_RESET)
         self.wait_until_idle()
-        
+
         self.send_command(CMD_DRIVER_OUTPUT_CTRL)
         self.send_data(0x27)
         self.send_data(0x01)
@@ -318,50 +325,78 @@ class EPD:
         return 0
 
     def getbuffer(self, image: Image.Image) -> List[int]:
-        img_mono = image.convert('1')
-        
+        img_mono = image.convert("1")
+
         if img_mono.width == self.height and img_mono.height == self.width:
             img_mono = img_mono.transpose(Image.Transpose.ROTATE_90)
-            
+
         return list(bytearray(img_mono.tobytes()))
 
     def getbuffer_4Gray(self, image: Image.Image) -> List[int]:
         buf = [0xFF] * (int(self.width / 4) * self.height)
-        image_gray = image.convert('L')
+        image_gray = image.convert("L")
         imwidth, imheight = image_gray.size
         pixels = image_gray.load()
 
         assert pixels is not None
-        
+
         i = 0
         if imwidth == self.width and imheight == self.height:
             for y in range(imheight):
                 for x in range(imwidth):
-                    if pixels[x, y] == 0xC0: pixels[x, y] = 0x80
-                    elif pixels[x, y] == 0x80: pixels[x, y] = 0x40
+                    if pixels[x, y] == 0xC0:
+                        pixels[x, y] = 0x80
+                    elif pixels[x, y] == 0x80:
+                        pixels[x, y] = 0x40
                     i += 1
                     if i % 4 == 0:
-                        buf[int((x + (y * self.width))/4)] = ((pixels[x-3, y]&0xc0) | (pixels[x-2, y]&0xc0)>>2 | (pixels[x-1, y]&0xc0)>>4 | (pixels[x, y]&0xc0)>>6) # type: ignore
+                        p3 = cast(int, pixels[x - 3, y])
+                        p2 = cast(int, pixels[x - 2, y])
+                        p1 = cast(int, pixels[x - 1, y])
+                        p0 = cast(int, pixels[x, y])
+
+                        buf[int((x + (y * self.width)) / 4)] = (
+                            (p3 & 0xC0)
+                            | (p2 & 0xC0) >> 2
+                            | (p1 & 0xC0) >> 4
+                            | (p0 & 0xC0) >> 6
+                        )
         elif imwidth == self.height and imheight == self.width:
             for x in range(imwidth):
                 for y in range(imheight):
                     newx = y
                     newy = self.height - x - 1
-                    if pixels[x, y] == 0xC0: pixels[x, y] = 0x80
-                    elif pixels[x, y] == 0x80: pixels[x, y] = 0x40
+
+                    if pixels[x, y] == 0xC0:
+                        pixels[x, y] = 0x80
+                    elif pixels[x, y] == 0x80:
+                        pixels[x, y] = 0x40
+
                     i += 1
                     if i % 4 == 0:
-                        buf[int((newx + (newy * self.width))/4)] = ((pixels[x, y-3]&0xc0) | (pixels[x, y-2]&0xc0)>>2 | (pixels[x, y-1]&0xc0)>>4 | (pixels[x, y]&0xc0)>>6) # type: ignore
+                        p3 = cast(int, pixels[x, y - 3])
+                        p2 = cast(int, pixels[x, y - 2])
+                        p1 = cast(int, pixels[x, y - 1])
+                        p0 = cast(int, pixels[x, y])
+
+                        buf[int((newx + (newy * self.width)) / 4)] = (
+                            (p3 & 0xC0)
+                            | (p2 & 0xC0) >> 2
+                            | (p1 & 0xC0) >> 4
+                            | (p0 & 0xC0) >> 6
+                        )
         return buf
 
     def display(self, image_buffer: Optional[List[int]]) -> None:
-        if image_buffer is None: return
+        if image_buffer is None:
+            return
         self.send_command(CMD_WRITE_RAM)
         self.send_data_array(image_buffer)
         self.TurnOnDisplay()
 
     def display_Base(self, image_buffer: Optional[List[int]]) -> None:
-        if image_buffer is None: return
+        if image_buffer is None:
+            return
 
         self.send_command(CMD_WRITE_RAM)
         self.send_data_array(image_buffer)
@@ -372,28 +407,38 @@ class EPD:
         self.TurnOnDisplay()
 
     def display_4Gray(self, image_buffer: Optional[List[int]]) -> None:
-        if image_buffer is None: return
+        if image_buffer is None:
+            return
 
         self.send_command(CMD_WRITE_RAM)
         for i in range(4736):
             temp3 = 0
             for j in range(2):
-                temp1 = image_buffer[i*2+j]
+                temp1 = image_buffer[i * 2 + j]
                 for k in range(2):
                     temp2 = temp1 & 0xC0
-                    if temp2 == 0xC0: temp3 |= 0x00
-                    elif temp2 == 0x00: temp3 |= 0x01
-                    elif temp2 == 0x80: temp3 |= 0x01
-                    else: temp3 |= 0x00
+                    if temp2 == 0xC0:
+                        temp3 |= 0x00
+                    elif temp2 == 0x00:
+                        temp3 |= 0x01
+                    elif temp2 == 0x80:
+                        temp3 |= 0x01
+                    else:
+                        temp3 |= 0x00
                     temp3 <<= 1
 
                     temp1 <<= 2
                     temp2 = temp1 & 0xC0
-                    if temp2 == 0xC0: temp3 |= 0x00
-                    elif temp2 == 0x00: temp3 |= 0x01
-                    elif temp2 == 0x80: temp3 |= 0x01
-                    else: temp3 |= 0x00
-                    if j != 1 or k != 1: temp3 <<= 1
+                    if temp2 == 0xC0:
+                        temp3 |= 0x00
+                    elif temp2 == 0x00:
+                        temp3 |= 0x01
+                    elif temp2 == 0x80:
+                        temp3 |= 0x01
+                    else:
+                        temp3 |= 0x00
+                    if j != 1 or k != 1:
+                        temp3 <<= 1
                     temp1 <<= 2
             self.send_data(temp3)
 
@@ -401,34 +446,46 @@ class EPD:
         for i in range(4736):
             temp3 = 0
             for j in range(2):
-                temp1 = image_buffer[i*2+j]
+                temp1 = image_buffer[i * 2 + j]
                 for k in range(2):
                     temp2 = temp1 & 0xC0
-                    if temp2 == 0xC0: temp3 |= 0x00
-                    elif temp2 == 0x00: temp3 |= 0x01
-                    elif temp2 == 0x80: temp3 |= 0x00
-                    else: temp3 |= 0x01
+                    if temp2 == 0xC0:
+                        temp3 |= 0x00
+                    elif temp2 == 0x00:
+                        temp3 |= 0x01
+                    elif temp2 == 0x80:
+                        temp3 |= 0x00
+                    else:
+                        temp3 |= 0x01
                     temp3 <<= 1
-                    
+
                     temp1 <<= 2
                     temp2 = temp1 & 0xC0
-                    if temp2 == 0xC0: temp3 |= 0x00
-                    elif temp2 == 0x00: temp3 |= 0x01
-                    elif temp2 == 0x80: temp3 |= 0x00
-                    else: temp3 |= 0x01
-                    if j != 1 or k != 1: temp3 <<= 1
+                    if temp2 == 0xC0:
+                        temp3 |= 0x00
+                    elif temp2 == 0x00:
+                        temp3 |= 0x01
+                    elif temp2 == 0x80:
+                        temp3 |= 0x00
+                    else:
+                        temp3 |= 0x01
+                    if j != 1 or k != 1:
+                        temp3 <<= 1
                     temp1 <<= 2
             self.send_data(temp3)
 
         self.TurnOnDisplay()
 
     def display_Partial(self, image_buffer: Optional[List[int]]) -> None:
-        if image_buffer is None: return
+        if image_buffer is None:
+            return
         self.reset()
 
         self.set_lut(WF_PARTIAL_2IN9)
         self.send_command(0x37)
-        self.send_data_array([0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00])
+        self.send_data_array(
+            [0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00]
+        )
 
         self.send_command(0x3C)
         self.send_data(0x80)
@@ -446,11 +503,11 @@ class EPD:
 
     def Clear(self, color: int = 0xFF) -> None:
         buf_size = int((self.width / 8) * self.height)
-        
+
         self.send_command(CMD_WRITE_RAM)
         self.send_data_array([color] * buf_size)
         self.TurnOnDisplay()
-        
+
         self.send_command(CMD_WRITE_RAM_2)
         self.send_data_array([color] * buf_size)
         self.TurnOnDisplay()

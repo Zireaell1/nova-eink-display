@@ -1,11 +1,14 @@
-import os
 import logging
-from datetime import datetime
+import os
 import random
+from datetime import datetime
+
 from PIL import Image
+
 from nova_eink_display.config import IMAGES_DIR
 
 logger = logging.getLogger(__name__)
+
 
 class Character:
     def __init__(self):
@@ -15,35 +18,35 @@ class Character:
     def _determine_reaction(self, stats, sys_error, active_alerts):
         if sys_error:
             return "disconnected"
-        
+
         if active_alerts:
-            return "concerned" # TODO: panicked
-        
-        cpu = stats.get('cpu', 0)
-        mem = stats.get('mem', 0)
+            return "concerned"  # TODO: panicked
+
+        cpu = stats.get("cpu", 0)
+        mem = stats.get("mem", 0)
 
         if cpu > 85 or mem > 90:
             return "working"
-            
+
         if cpu > 75 or mem > 80:
             return "concerned"
 
-        if stats.get('uptime', 3600) < 300:
+        if stats.get("uptime", 3600) < 300:
             return "salute"
 
         now = datetime.now()
         hour = now.hour
-        
+
         if hour >= 23 or hour < 6:
             return "sleep"
-            
+
         if 6 <= hour < 9:
             return "coffee"
 
-        minute_block = now.minute // 10 
+        minute_block = now.minute // 10
         seed = f"{now.date()}_{hour}_{minute_block}"
         mood_picker = random.Random(seed)
-        
+
         idle_pool = ["happy", "music", "smug"]
         return mood_picker.choice(idle_pool)
 
@@ -59,7 +62,7 @@ class Character:
         if path_to_load and os.path.exists(path_to_load):
             try:
                 with Image.open(path_to_load) as temp_img:
-                    img = temp_img.convert('1', dither=Image.Dither.NONE)
+                    img = temp_img.convert("1", dither=Image.Dither.NONE)
                     self.image_cache[reaction_state] = img
                     return img
             except Exception as e:

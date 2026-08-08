@@ -32,29 +32,31 @@
 #
 
 import logging
-import spidev # type: ignore
 import time
 from typing import List
-from gpiozero import LED, Button # type: ignore
+
+import spidev  # type: ignore
+from gpiozero import LED, Button  # type: ignore
 
 logger = logging.getLogger(__name__)
 
-RST_PIN  = 17
-DC_PIN   = 25
+RST_PIN = 17
+DC_PIN = 25
 # CS_PIN   = 8
 BUSY_PIN = 24
-PWR_PIN  = 18
+PWR_PIN = 18
+
 
 class RaspberryPi:
     def __init__(self) -> None:
         self.SPI = spidev.SpiDev()
         self._spi_is_open = False
 
-        self.pin_rst     = LED(RST_PIN)
-        self.pin_dc      = LED(DC_PIN)
+        self.pin_rst = LED(RST_PIN)
+        self.pin_dc = LED(DC_PIN)
         # self.pin_cs      = LED(self.CS_PIN)
-        self.pin_pwr     = LED(PWR_PIN)
-        self.pin_busy    = Button(BUSY_PIN, pull_up=False)
+        self.pin_pwr = LED(PWR_PIN)
+        self.pin_busy = Button(BUSY_PIN, pull_up=False)
 
     def digital_write(self, pin: int, value: int) -> None:
         if pin == RST_PIN:
@@ -111,12 +113,13 @@ class RaspberryPi:
         self.pin_dc.off()
         self.pin_pwr.off()
 
+
 hw = RaspberryPi()
 
-digital_write  = hw.digital_write
-digital_read   = hw.digital_read
-delay_ms       = hw.delay_ms
-spi_writebyte  = hw.spi_writebyte
+digital_write = hw.digital_write
+digital_read = hw.digital_read
+delay_ms = hw.delay_ms
+spi_writebyte = hw.spi_writebyte
 spi_writebyte2 = hw.spi_writebyte2
-module_init    = hw.module_init
-module_exit    = hw.module_exit
+module_init = hw.module_init
+module_exit = hw.module_exit

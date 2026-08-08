@@ -1,10 +1,12 @@
 import logging
 import textwrap
 
-from .base_screen import BaseScreen, theme
 from nova_eink_display.config import IMAGES_DIR
 
+from .base_screen import BaseScreen, theme
+
 logger = logging.getLogger(__name__)
+
 
 class MainScreen(BaseScreen):
     def __init__(self, width, height):
@@ -18,7 +20,6 @@ class MainScreen(BaseScreen):
             return f"{days}d {hours}h"
         else:
             return f"{hours}h"
-
 
     def draw_block_bar(self, draw, x, y, value, max_val=100, width=112):
         draw.rectangle((x, y, x + width, y + 6), outline=0)
@@ -35,12 +36,20 @@ class MainScreen(BaseScreen):
 
         for label, is_healthy in services.items():
             if is_healthy:
-                draw.rectangle((current_x, y, current_x + box_size, y + box_size), outline=0, fill=255)
+                draw.rectangle(
+                    (current_x, y, current_x + box_size, y + box_size),
+                    outline=0,
+                    fill=255,
+                )
                 draw.text((current_x + 3, y + 0), label, font=theme.mono_sm, fill=0)
             else:
-                draw.rectangle((current_x, y, current_x + box_size, y + box_size), outline=0, fill=0)
+                draw.rectangle(
+                    (current_x, y, current_x + box_size, y + box_size),
+                    outline=0,
+                    fill=0,
+                )
                 draw.text((current_x + 3, y + 0), label, font=theme.mono_sm, fill=255)
-            
+
             current_x += box_size + spacing
 
     def draw_alert_panel(self, draw_buffer, alerts):
@@ -71,15 +80,15 @@ class MainScreen(BaseScreen):
         if active_alerts is None:
             active_alerts = []
 
-        stats = data.get('stats', {})
-        sys_error = data.get('error')
+        stats = data.get("stats", {})
+        sys_error = data.get("error")
 
         # Header
         self.draw_header(draw_buffer)
 
         # Footer
-        ups_val = stats.get('ups_charge', 0)
-        uptime_seconds = stats.get('uptime', 0)
+        ups_val = stats.get("ups_charge", 0)
+        uptime_seconds = stats.get("uptime", 0)
         formatted_uptime = self.format_uptime(uptime_seconds)
         self.draw_footer(draw_buffer, ups_val, formatted_uptime)
 
@@ -93,22 +102,20 @@ class MainScreen(BaseScreen):
             COL_START = 4
 
             # CPU Stats
-            cpu_val = stats.get('cpu', 0)
+            cpu_val = stats.get("cpu", 0)
             cpu_text = f"CPU > {int(cpu_val):02d}%"
             draw_buffer.text((COL_START, 26), cpu_text, font=theme.mono, fill=0)
             draw_buffer.text((COL_START + 1, 26), cpu_text, font=theme.mono, fill=0)
             self.draw_block_bar(draw_buffer, COL_START, 38, cpu_val, width=118)
 
             # RAM Stats
-            mem_val = stats.get('mem', 0)
+            mem_val = stats.get("mem", 0)
             mem_text = f"MEM > {int(mem_val):02d}%"
             draw_buffer.text((COL_START, 58), mem_text, font=theme.mono, fill=0)
             draw_buffer.text((COL_START + 1, 58), mem_text, font=theme.mono, fill=0)
             self.draw_block_bar(draw_buffer, COL_START, 70, mem_val, width=118)
 
             # Service Grid
-            service_health = {
-                'B': stats.get('backup_status', 1)
-            }
-            
+            service_health = {"B": stats.get("backup_status", 1)}
+
             self.draw_status_blocks(draw_buffer, COL_START, 90, service_health)

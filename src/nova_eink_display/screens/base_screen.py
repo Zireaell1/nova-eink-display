@@ -1,11 +1,13 @@
-import os
 import datetime
 import logging
+import os
+
 from PIL import ImageFont
 
 from nova_eink_display.config import FONT_DIR
 
 logger = logging.getLogger(__name__)
+
 
 class Theme:
     @staticmethod
@@ -23,7 +25,9 @@ class Theme:
         self.mono_sm = self.load_font("slkscr.ttf", 8)
         self.mono_lg = self.load_font("slkscr.ttf", 8)
 
+
 theme = Theme()
+
 
 class BaseScreen:
     def __init__(self, width: int, height: int):
@@ -40,7 +44,9 @@ class BaseScreen:
 
         draw.text((4, 8), title, font=theme.mono_sm, fill=fg_color, anchor="lm")
 
-        draw.text((self.width - 4, 8), now, font=theme.mono_sm, fill=fg_color, anchor="rm")
+        draw.text(
+            (self.width - 4, 8), now, font=theme.mono_sm, fill=fg_color, anchor="rm"
+        )
 
     def draw_footer(self, draw, ups_val: float, uptime: str = ""):
         ups_status = "OK" if ups_val > 90 else "WARN"
@@ -48,8 +54,10 @@ class BaseScreen:
         right_text = f"UP: {uptime}"
 
         draw.rectangle((0, 112, self.width, 128), fill=255)
-        draw.line((0, 112, self.width, 112), fill=0, width=1) 
+        draw.line((0, 112, self.width, 112), fill=0, width=1)
 
         draw.text((4, 120), left_text, font=theme.mono_sm, fill=0, anchor="lm")
-        
-        draw.text((self.width - 4, 120), right_text, font=theme.mono_sm, fill=0, anchor="rm")
+
+        draw.text(
+            (self.width - 4, 120), right_text, font=theme.mono_sm, fill=0, anchor="rm"
+        )

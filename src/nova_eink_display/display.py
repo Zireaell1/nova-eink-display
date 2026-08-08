@@ -2,12 +2,21 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class DisplayDriver:
-    def init(self): raise NotImplementedError
-    def render(self, image, full_refresh=False): raise NotImplementedError
-    def cleanup(self): raise NotImplementedError
+    def init(self):
+        raise NotImplementedError
+
+    def render(self, image, full_refresh=False):
+        raise NotImplementedError
+
+    def cleanup(self):
+        raise NotImplementedError
+
     @property
-    def dimensions(self): raise NotImplementedError
+    def dimensions(self):
+        raise NotImplementedError
+
 
 class SimulatedDisplay(DisplayDriver):
     def __init__(self, width=296, height=128):
@@ -28,9 +37,11 @@ class SimulatedDisplay(DisplayDriver):
     def cleanup(self):
         logger.info("Cleaned up simulated display.")
 
+
 class EPDDisplay(DisplayDriver):
     def __init__(self):
         from nova_eink_display.lib import epd2in9_V2
+
         self.epd = epd2in9_V2.EPD()
 
     @property

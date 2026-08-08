@@ -1,7 +1,9 @@
 from PIL import Image, ImageDraw
-from nova_eink_display.screens.main_screen import MainScreen
-from nova_eink_display.screens.base_screen import theme
+
 from nova_eink_display.character import Character
+from nova_eink_display.screens.base_screen import theme
+from nova_eink_display.screens.main_screen import MainScreen
+
 
 class UIRenderer:
     def __init__(self, width, height):
@@ -12,13 +14,15 @@ class UIRenderer:
         self.character = Character()
 
     def render_frame(self, data, active_alerts, is_blinking=False):
-        image = Image.new('1', (self.width, self.height), 255)
+        image = Image.new("1", (self.width, self.height), 255)
         draw = ImageDraw.Draw(image)
 
-        stats = data.get('stats', {})
-        sys_error = data.get('error')
+        stats = data.get("stats", {})
+        sys_error = data.get("error")
 
-        character_image = self.character.get_current_image(stats, sys_error, active_alerts, is_blinking)
+        character_image = self.character.get_current_image(
+            stats, sys_error, active_alerts, is_blinking
+        )
 
         if character_image:
             paste_x = self.width - character_image.width
