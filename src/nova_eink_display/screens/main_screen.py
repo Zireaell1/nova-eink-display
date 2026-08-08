@@ -1,8 +1,6 @@
 import logging
 import textwrap
 
-from nova_eink_display.config import IMAGES_DIR
-
 from .base_screen import BaseScreen, theme
 
 logger = logging.getLogger(__name__)

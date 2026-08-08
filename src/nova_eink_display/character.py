@@ -2,6 +2,7 @@ import logging
 import os
 import random
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from PIL import Image
 
@@ -34,7 +35,7 @@ class Character:
         if stats.get("uptime", 3600) < 300:
             return "salute"
 
-        now = datetime.now()
+        now = datetime.now(ZoneInfo("Europe/Warsaw"))
         hour = now.hour
 
         if hour >= 23 or hour < 6:
@@ -65,7 +66,7 @@ class Character:
                     img = temp_img.convert("1", dither=Image.Dither.NONE)
                     self.image_cache[reaction_state] = img
                     return img
-            except Exception as e:
+            except (OSError, ValueError) as e:
                 logger.warning(f"Could not load image at {path_to_load}. {e}")
 
         self.image_cache[reaction_state] = None

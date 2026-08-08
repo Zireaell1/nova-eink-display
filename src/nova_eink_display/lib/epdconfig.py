@@ -33,7 +33,6 @@
 
 import logging
 import time
-from typing import List
 
 import spidev  # type: ignore
 from gpiozero import LED, Button  # type: ignore
@@ -84,10 +83,10 @@ class RaspberryPi:
     def delay_ms(self, delaytime: int) -> None:
         time.sleep(delaytime / 1000.0)
 
-    def spi_writebyte(self, data: List[int]) -> None:
+    def spi_writebyte(self, data: list[int]) -> None:
         self.SPI.writebytes(data)
 
-    def spi_writebyte2(self, data: List[int]) -> None:
+    def spi_writebyte2(self, data: list[int]) -> None:
         self.SPI.writebytes2(data)
 
     def module_init(self) -> int:

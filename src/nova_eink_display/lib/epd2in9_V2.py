@@ -32,7 +32,7 @@
 #
 
 import logging
-from typing import List, Optional, cast
+from typing import cast
 
 from PIL import Image
 
@@ -188,7 +188,7 @@ class EPD:
         epdconfig.spi_writebyte([data])
         # epdconfig.digital_write(self.cs_pin, 1)
 
-    def send_data_array(self, data: List[int]) -> None:
+    def send_data_array(self, data: list[int]) -> None:
         epdconfig.digital_write(self.dc_pin, 1)
         # epdconfig.digital_write(self.cs_pin, 0)
         epdconfig.spi_writebyte2(data)
@@ -217,7 +217,7 @@ class EPD:
         self.send_command(CMD_MASTER_ACTIVATION)
         self.wait_until_idle()
 
-    def set_lut(self, lut: List[int]) -> None:
+    def set_lut(self, lut: list[int]) -> None:
         self.send_command(0x32)
         for i in range(153):
             self.send_data(lut[i])
@@ -324,7 +324,7 @@ class EPD:
         self.set_lut(Gray4_LUT)
         return 0
 
-    def getbuffer(self, image: Image.Image) -> List[int]:
+    def getbuffer(self, image: Image.Image) -> list[int]:
         img_mono = image.convert("1")
 
         if img_mono.width == self.height and img_mono.height == self.width:
@@ -332,7 +332,7 @@ class EPD:
 
         return list(bytearray(img_mono.tobytes()))
 
-    def getbuffer_4Gray(self, image: Image.Image) -> List[int]:
+    def getbuffer_4Gray(self, image: Image.Image) -> list[int]:
         buf = [0xFF] * (int(self.width / 4) * self.height)
         image_gray = image.convert("L")
         imwidth, imheight = image_gray.size
@@ -387,14 +387,14 @@ class EPD:
                         )
         return buf
 
-    def display(self, image_buffer: Optional[List[int]]) -> None:
+    def display(self, image_buffer: list[int] | None) -> None:
         if image_buffer is None:
             return
         self.send_command(CMD_WRITE_RAM)
         self.send_data_array(image_buffer)
         self.TurnOnDisplay()
 
-    def display_Base(self, image_buffer: Optional[List[int]]) -> None:
+    def display_Base(self, image_buffer: list[int] | None) -> None:
         if image_buffer is None:
             return
 
@@ -406,7 +406,7 @@ class EPD:
 
         self.TurnOnDisplay()
 
-    def display_4Gray(self, image_buffer: Optional[List[int]]) -> None:
+    def display_4Gray(self, image_buffer: list[int] | None) -> None:
         if image_buffer is None:
             return
 
@@ -419,9 +419,7 @@ class EPD:
                     temp2 = temp1 & 0xC0
                     if temp2 == 0xC0:
                         temp3 |= 0x00
-                    elif temp2 == 0x00:
-                        temp3 |= 0x01
-                    elif temp2 == 0x80:
+                    elif temp2 == 0x00 or temp2 == 0x80:
                         temp3 |= 0x01
                     else:
                         temp3 |= 0x00
@@ -431,9 +429,7 @@ class EPD:
                     temp2 = temp1 & 0xC0
                     if temp2 == 0xC0:
                         temp3 |= 0x00
-                    elif temp2 == 0x00:
-                        temp3 |= 0x01
-                    elif temp2 == 0x80:
+                    elif temp2 == 0x00 or temp2 == 0x80:
                         temp3 |= 0x01
                     else:
                         temp3 |= 0x00
@@ -476,7 +472,7 @@ class EPD:
 
         self.TurnOnDisplay()
 
-    def display_Partial(self, image_buffer: Optional[List[int]]) -> None:
+    def display_Partial(self, image_buffer: list[int] | None) -> None:
         if image_buffer is None:
             return
         self.reset()

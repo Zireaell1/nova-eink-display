@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 import logging
 import os
 import random
@@ -97,16 +96,15 @@ def main():
             refresh_counter = (refresh_counter + 1) % FULL_REFRESH_CYCLE
 
             for _ in range(FETCH_INTERVAL):
-                if not active_alerts:
-                    if random.random() < 0.12:
-                        display.render(blink_buffer, full_refresh=False)
-                        time.sleep(1)
-                        display.render(image_buffer, full_refresh=False)
+                if not active_alerts and random.random() < 0.12:
+                    display.render(blink_buffer, full_refresh=False)
+                    time.sleep(1)
+                    display.render(image_buffer, full_refresh=False)
 
                 time.sleep(1)
 
-        except Exception as e:
-            logger.error(f"Main loop exception: {e}")
+        except Exception:
+            logger.exception("Main loop exception")
             time.sleep(10)
 
 

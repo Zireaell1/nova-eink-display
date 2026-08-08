@@ -40,8 +40,8 @@ class PrometheusClient:
         except requests.exceptions.RequestException as e:
             logger.error(f"Prometheus HTTP/Network Error: {e}")
             return None, "Unreachable"
-        except Exception as e:
-            logger.error(f"Prometheus query failed: {e}")
+        except (ValueError, TypeError, IndexError) as e:
+            logger.error(f"Prometheus data parse error: {e}")
             return None, "Parse Error"
 
     def fetch_all(self):

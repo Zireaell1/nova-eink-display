@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+from zoneinfo import ZoneInfo
 
 from PIL import ImageFont
 
@@ -35,7 +36,7 @@ class BaseScreen:
         self.height = height
 
     def draw_header(self, draw, title: str = "root@nova:~#", invert: bool = False):
-        now = datetime.datetime.now().strftime("%H:%M")
+        now = datetime.datetime.now(ZoneInfo("Europe/Warsaw")).strftime("%H:%M")
 
         bg_color = 255 if invert else 0
         fg_color = 0 if invert else 255
