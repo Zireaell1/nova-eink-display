@@ -20,13 +20,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Install ruff-action
+      - name: Install ruff-action and run Ruff Linter
         uses: astral-sh/ruff-action@v4.1.0
         with:
           src: "./src"
 
-      - name: Run Ruff Linter
-        run: ruff check
-
       - name: Run Ruff Formatter
-        run: ruff format --check
+        run: ruff format --check ./src
