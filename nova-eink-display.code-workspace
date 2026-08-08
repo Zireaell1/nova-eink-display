@@ -5,10 +5,13 @@
 		}
 	],
 	"settings": {
-		"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-		"python.analysis.extraPaths": [
-			"${workspaceFolder}/src"
-		]
+		"[python]": {
+			"editor.formatOnSave": true,
+			"editor.defaultFormatter": "charliermarsh.ruff",
+			"editor.codeActionsOnSave": {
+				"source.organizeImports": "explicit"
+			}
+		}
 	},
 	"launch": {
 		"version": "0.2.0",
