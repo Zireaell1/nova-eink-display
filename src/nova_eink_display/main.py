@@ -6,12 +6,6 @@ import signal
 import random
 import os
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
 log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
 log_level = getattr(logging, log_level_str, logging.INFO)
 
@@ -21,13 +15,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from src.dashboard.config import (
+from nova_eink_display.config import (
     FETCH_INTERVAL, FULL_REFRESH_CYCLE, QUERIES, ALERT_RULES,
     PROMETHEUS_URL, PROMETHEUS_API_USERNAME, PROMETHEUS_API_PASSWORD, SIMULATE_MODE
 )
-from src.dashboard.prometheus import PrometheusClient
-from src.dashboard.display import EPDDisplay, SimulatedDisplay
-from src.dashboard.renderer import UIRenderer
+from nova_eink_display.prometheus import PrometheusClient
+from nova_eink_display.display import EPDDisplay, SimulatedDisplay
+from nova_eink_display.renderer import UIRenderer
 
 def evaluate_alerts(stats):
     active_alerts = []

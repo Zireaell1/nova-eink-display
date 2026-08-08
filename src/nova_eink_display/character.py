@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 import random
 from PIL import Image
-from src.dashboard.config import IMAGES_DIR
+from nova_eink_display.config import IMAGES_DIR
 
 logger = logging.getLogger(__name__)
 

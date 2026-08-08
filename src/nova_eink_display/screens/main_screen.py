@@ -2,7 +2,7 @@ import logging
 import textwrap
 
 from .base_screen import BaseScreen, theme
-from src.dashboard.config import IMAGES_DIR
+from nova_eink_display.config import IMAGES_DIR
 
 logger = logging.getLogger(__name__)
 

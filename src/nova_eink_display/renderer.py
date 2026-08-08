@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw
-from src.dashboard.screens import MainScreen
-from src.dashboard.screens.base_screen import theme
-from src.dashboard.character import Character
+from nova_eink_display.screens.main_screen import MainScreen
+from nova_eink_display.screens.base_screen import theme
+from nova_eink_display.character import Character
 
 class UIRenderer:
     def __init__(self, width, height):

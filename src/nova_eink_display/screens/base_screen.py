@@ -3,7 +3,7 @@ import datetime
 import logging
 from PIL import ImageFont
 
-from src.dashboard.config import FONT_DIR
+from nova_eink_display.config import FONT_DIR
 
 logger = logging.getLogger(__name__)
 

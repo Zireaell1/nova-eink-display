@@ -30,7 +30,7 @@ class SimulatedDisplay(DisplayDriver):
 
 class EPDDisplay(DisplayDriver):
     def __init__(self):
-        from src.dashboard.lib import epd2in9_V2
+        from nova_eink_display.lib import epd2in9_V2
         self.epd = epd2in9_V2.EPD()
 
     @property
