@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from PIL import ImageFont
 
-from nova_eink_display.config import FONT_DIR
+from nova_eink_display.config import FONT_DIR, TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class BaseScreen:
         self.height = height
 
     def draw_header(self, draw, title: str = "root@nova:~#", invert: bool = False):
-        now = datetime.datetime.now(ZoneInfo("Europe/Warsaw")).strftime("%H:%M")
+        now = datetime.datetime.now(ZoneInfo(TIMEZONE)).strftime("%H:%M")
 
         bg_color = 255 if invert else 0
         fg_color = 0 if invert else 255

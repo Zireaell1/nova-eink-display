@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from PIL import Image
 
-from nova_eink_display.config import IMAGES_DIR
+from nova_eink_display.config import IMAGES_DIR, TIMEZONE
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class Character:
         if stats.get("uptime", 3600) < 300:
             return "salute"
 
-        now = datetime.now(ZoneInfo("Europe/Warsaw"))
+        now = datetime.now(ZoneInfo(TIMEZONE))
         hour = now.hour
 
         if hour >= 23 or hour < 6:
