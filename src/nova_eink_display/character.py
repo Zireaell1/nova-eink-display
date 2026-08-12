@@ -75,7 +75,8 @@ class Character:
     def get_current_image(self, stats, sys_error, active_alerts, is_blinking=False):
         mood = self._determine_reaction(stats, sys_error, active_alerts)
 
-        logger.debug(f"Selected mood: {mood}")
+        if not is_blinking:
+            logger.debug(f"Selected mood: {mood}")
 
         if is_blinking and mood == "happy":
             blink_mood = "happy-eyes-closed"

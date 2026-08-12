@@ -15,8 +15,9 @@ FETCH_INTERVAL = int(os.getenv("FETCH_INTERVAL", "30"))
 FULL_REFRESH_CYCLE = int(os.getenv("FULL_REFRESH_CYCLE", "10"))
 
 SIMULATE_MODE = os.getenv("SIMULATE", "false").lower() == "true"
-
 INSTANCE = os.getenv("INSTANCE", "")
+
+INVERT_COLORS = os.getenv("INVERT_COLORS", "false").lower() == "true"
 TIMEZONE = os.getenv("TIMEZONE", "Europe/Warsaw")
 
 QUERIES = {

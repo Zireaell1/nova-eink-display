@@ -1,6 +1,7 @@
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 from nova_eink_display.character import Character
+from nova_eink_display.config import INVERT_COLORS
 from nova_eink_display.screens.base_screen import theme
 from nova_eink_display.screens.main_screen import MainScreen
 
@@ -32,5 +33,8 @@ class UIRenderer:
             draw.text((160, 60), "IMG MISSING", font=theme.mono_sm, fill=0)
 
         self.main_screen.draw(draw, data, active_alerts)
+
+        if INVERT_COLORS:
+            image = ImageChops.invert(image)
 
         return image
