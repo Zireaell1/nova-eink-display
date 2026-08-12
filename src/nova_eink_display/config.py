@@ -20,6 +20,7 @@ FULL_REFRESH_CYCLE = int(os.getenv("FULL_REFRESH_CYCLE", "10"))
 SIMULATE_MODE = os.getenv("SIMULATE", "false").lower() == "true"
 
 INSTANCE = os.getenv("INSTANCE", "")
+TIMEZONE = os.getenv("TIMEZONE", "Europe/Warsaw")
 
 QUERIES = {
     "cpu": f'100 - (avg(rate(node_cpu_seconds_total{{mode="idle", instance="{INSTANCE}"}}[5m])) * 100)',
