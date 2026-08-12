@@ -2,15 +2,12 @@ import os
 
 MAIN_DIR = os.path.dirname(os.path.realpath(__file__))
 BASE_DIR = os.path.dirname(os.path.dirname(MAIN_DIR))
-
 LIB_DIR = os.path.join(BASE_DIR, "lib")
-
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
-
 FONT_DIR = os.path.join(ASSETS_DIR, "fonts")
 IMAGES_DIR = os.path.join(ASSETS_DIR, "images")
 
-PROMETHEUS_URL = f"https://{os.getenv('PROMETHEUS_SUBDOMAIN', '')}.{os.getenv('PROMETHEUS_DOMAIN', '')}"
+PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "")
 PROMETHEUS_API_USERNAME = os.getenv("PROMETHEUS_API_USERNAME", "")
 PROMETHEUS_API_PASSWORD = os.getenv("PROMETHEUS_API_PASSWORD", "")
 
