@@ -17,7 +17,7 @@ nova-eink-display = "nova_eink_display.main:main"
 
 [project.optional-dependencies]
 rpi = [
-    "gpiozero==2.0.1 ; sys_platform == 'linux'",
+    "gpiozero==2.0.1.post3; sys_platform == 'linux'",
     "lgpio==0.2.2.0 ; sys_platform == 'linux'",
     "spidev==3.8 ; sys_platform == 'linux'",
 ]
