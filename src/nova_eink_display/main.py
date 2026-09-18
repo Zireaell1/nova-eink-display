@@ -4,8 +4,8 @@ import signal
 import sys
 import time
 
+from nova_eink_display.alerts import evaluate_alerts
 from nova_eink_display.config import (
-    ALERT_RULES,
     FETCH_INTERVAL,
     FULL_REFRESH_CYCLE,
     PROMETHEUS_API_PASSWORD,
@@ -21,22 +21,6 @@ from nova_eink_display.prometheus import PrometheusClient
 from nova_eink_display.renderer import UIRenderer
 
 logger = logging.getLogger(__name__)
-
-
-def evaluate_alerts(stats):
-    active_alerts = []
-
-    for key, (threshold, operator, message) in ALERT_RULES.items():
-        if key not in stats:
-            continue
-
-        val = stats[key]
-        if (operator == ">" and val > threshold) or (
-            operator == "<" and val < threshold
-        ):
-            active_alerts.append(f"{message} ({int(val)})")
-
-    return active_alerts
 
 
 def build_display():
