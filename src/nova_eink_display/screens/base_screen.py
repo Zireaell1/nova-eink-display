@@ -35,8 +35,11 @@ class BaseScreen:
         self.width = width
         self.height = height
 
-    def draw_header(self, draw, title: str = "root@nova:~#", invert: bool = False):
-        now = datetime.datetime.now(ZoneInfo(TIMEZONE)).strftime("%H:%M")
+    def draw_header(
+        self, draw, title: str = "root@nova:~#", invert: bool = False, now=None
+    ):
+        now = now or datetime.datetime.now(ZoneInfo(TIMEZONE))
+        clock = now.strftime("%H:%M")
 
         bg_color = 255 if invert else 0
         fg_color = 0 if invert else 255
@@ -46,7 +49,7 @@ class BaseScreen:
         draw.text((4, 8), title, font=theme.mono_sm, fill=fg_color, anchor="lm")
 
         draw.text(
-            (self.width - 4, 8), now, font=theme.mono_sm, fill=fg_color, anchor="rm"
+            (self.width - 4, 8), clock, font=theme.mono_sm, fill=fg_color, anchor="rm"
         )
 
     def draw_footer(self, draw, ups_val: float | None, uptime: str = "--"):

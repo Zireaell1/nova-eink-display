@@ -36,6 +36,104 @@
 				"envFile": "${workspaceFolder}/.env",
 				"console": "integratedTerminal",
 				"justMyCode": true
+			},
+			{
+				"name": "Render States",
+				"type": "debugpy",
+				"request": "launch",
+				"module": "nova_eink_display.tools.render_states",
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal",
+				"justMyCode": true
+			},
+			{
+				"name": "Render States (check goldens)",
+				"type": "debugpy",
+				"request": "launch",
+				"module": "nova_eink_display.tools.render_states",
+				"args": [
+					"--golden",
+					"tests/golden"
+				],
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal",
+				"justMyCode": true
+			}
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"options": {
+			"cwd": "${workspaceFolder}"
+		},
+		"presentation": {
+			"reveal": "always",
+			"panel": "dedicated",
+			"clear": true
+		},
+		"tasks": [
+			{
+				"label": "Render states",
+				"type": "shell",
+				"command": "uv run python -m nova_eink_display.tools.render_states",
+				"detail": "Writes 18 PNGs + all-states.png to ./frames",
+				"problemMatcher": [],
+				"group": {
+					"kind": "build",
+					"isDefault": true
+				}
+			},
+			{
+				"label": "Render states: check goldens",
+				"type": "shell",
+				"command": "uv run python -m nova_eink_display.tools.render_states --golden tests/golden",
+				"detail": "Fails if any frame drifted from tests/golden",
+				"problemMatcher": [],
+				"group": {
+					"kind": "test",
+					"isDefault": true
+				}
+			},
+			{
+				"label": "Render states: accept current as golden",
+				"type": "shell",
+				"command": "uv run python -m nova_eink_display.tools.render_states --no-overview --out frames && mkdir -p tests/golden && cp frames/*.png tests/golden/ && git status --short tests/golden",
+				"detail": "Only after reviewing ./frames - this is what CI will diff against",
+				"problemMatcher": []
+			},
+			{
+				"label": "Lint: ruff check",
+				"type": "shell",
+				"command": "uv run --with ruff ruff check ./src",
+				"problemMatcher": [],
+				"group": "test"
+			},
+			{
+				"label": "Lint: ruff format --check",
+				"type": "shell",
+				"command": "uv run --with ruff ruff format --check ./src",
+				"problemMatcher": [],
+				"group": "test"
+			},
+			{
+				"label": "Verify: import every module",
+				"type": "shell",
+				"command": "uv run python -c \"import importlib, pkgutil, nova_eink_display; [importlib.import_module(m.name) for m in pkgutil.walk_packages(nova_eink_display.__path__, 'nova_eink_display.') if '.lib' not in m.name] and print('all modules import')\"",
+				"detail": "Skips lib.* - those need spidev/gpiozero",
+				"problemMatcher": [],
+				"group": "test"
+			},
+			{
+				"label": "Verify: everything CI runs",
+				"dependsOrder": "sequence",
+				"dependsOn": [
+					"Lint: ruff check",
+					"Lint: ruff format --check",
+					"Verify: import every module",
+					"Render states"
+				],
+				"problemMatcher": [],
+				"group": "test"
 			}
 		]
 	},

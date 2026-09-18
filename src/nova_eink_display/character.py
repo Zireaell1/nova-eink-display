@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 class Character:
     def __init__(self):
-        self.default_char = "character_happy.png"
+        self.default_char = "character-happy.png"
         self.image_cache = {}
 
-    def _determine_reaction(self, stats, sys_error, active_alerts):
+    def _determine_reaction(self, stats, sys_error, active_alerts, now=None):
         if sys_error:
             return "disconnected"
 
@@ -35,7 +35,7 @@ class Character:
         if stats.get("uptime", 3600) < 300:
             return "salute"
 
-        now = datetime.now(ZoneInfo(TIMEZONE))
+        now = now or datetime.now(ZoneInfo(TIMEZONE))
         hour = now.hour
 
         if hour >= 23 or hour < 6:
@@ -72,8 +72,10 @@ class Character:
         self.image_cache[reaction_state] = None
         return None
 
-    def get_current_image(self, stats, sys_error, active_alerts, is_blinking=False):
-        mood = self._determine_reaction(stats, sys_error, active_alerts)
+    def get_current_image(
+        self, stats, sys_error, active_alerts, is_blinking=False, now=None
+    ):
+        mood = self._determine_reaction(stats, sys_error, active_alerts, now)
 
         if not is_blinking:
             logger.debug(f"Selected mood: {mood}")
@@ -83,6 +85,6 @@ class Character:
 
             blink_img = self._get_image(blink_mood)
             if blink_img:
-                return blink_img
+                return blink_img, mood
 
-        return self._get_image(mood)
+        return self._get_image(mood), mood

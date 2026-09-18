@@ -13,6 +13,12 @@
         "pypi"
       ],
       "minimumReleaseAge": "30 days"
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "minimumReleaseAge": "7 days"
     }
   ]
 }

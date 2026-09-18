@@ -2,11 +2,12 @@
 .venv
 
 preview.png
+/frames/
 
 .DS_Store
 
 __pycache__/
 
-images/
+/assets/images/
 
 .lgd-nfy*

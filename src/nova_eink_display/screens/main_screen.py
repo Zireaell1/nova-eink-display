@@ -69,6 +69,11 @@ class MainScreen(BaseScreen):
 
             current_x += box_size + spacing
 
+    def draw_error_panel(self, draw_buffer, sys_error, x=4, y=30, width=14):
+        for line in textwrap.wrap(f"SYS_ERR: {sys_error}", width=width):
+            draw_buffer.text((x, y), line, font=theme.mono, fill=0)
+            y += 16
+
     def draw_alert_panel(self, draw_buffer, alerts):
         draw_buffer.rectangle((4, 24, 122, 36), fill=0)
         draw_buffer.text((63, 30), "SYS FAULT", font=theme.mono, fill=255, anchor="mm")
@@ -93,7 +98,7 @@ class MainScreen(BaseScreen):
             draw_buffer.text((4, y_offset), line, font=theme.mono, fill=0)
             y_offset += 16
 
-    def draw(self, draw_buffer, data, active_alerts=None):
+    def draw(self, draw_buffer, data, active_alerts=None, now=None):
         if active_alerts is None:
             active_alerts = []
 
@@ -101,7 +106,7 @@ class MainScreen(BaseScreen):
         sys_error = data.get("error")
 
         # Header
-        self.draw_header(draw_buffer)
+        self.draw_header(draw_buffer, now=now)
 
         # Footer
         ups_val = stats.get("ups_charge")
@@ -109,7 +114,7 @@ class MainScreen(BaseScreen):
         self.draw_footer(draw_buffer, ups_val, formatted_uptime)
 
         if sys_error:
-            draw_buffer.text((10, 30), f"SYS_ERR: {sys_error}", font=theme.mono, fill=0)
+            self.draw_error_panel(draw_buffer, sys_error)
             return
 
         if active_alerts:

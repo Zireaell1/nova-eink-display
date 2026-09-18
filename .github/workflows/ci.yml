@@ -1,0 +1,85 @@
+---
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install ruff-action and run Ruff Linter
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          src: "./src"
+
+      - name: Run Ruff Formatter
+        run: ruff format --check ./src
+
+  verify:
+    name: Verify
+    runs-on: ubuntu-24.04
+    env:
+      UV_FROZEN: "1"
+      UV_NO_DEV: "1"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Report interpreter
+        run: uv run python -VV
+
+      - name: Import every module
+        run: |
+          uv run python - <<'PY'
+          import importlib, pkgutil
+          import nova_eink_display
+          for m in pkgutil.walk_packages(
+              nova_eink_display.__path__, "nova_eink_display."
+          ):
+              if ".lib." in m.name or m.name.endswith(".lib"):
+                  continue  # needs spidev/gpiozero
+              importlib.import_module(m.name)
+              print("ok", m.name)
+          PY
+
+      - name: Render every dashboard state
+        run: uv run python -m nova_eink_display.tools.render_states --out frames
+
+      - name: Check frames against golden
+        run: |
+          if [ -d tests/golden ]; then
+            uv run python -m nova_eink_display.tools.render_states \
+              --out frames --golden tests/golden
+          else
+            echo "::notice::tests/golden/ not present - frames rendered but not diffed"
+          fi
+
+      - name: Upload frames
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frames
+          path: frames/
+          if-no-files-found: error
