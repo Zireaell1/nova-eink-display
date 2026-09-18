@@ -1,43 +1,45 @@
 import logging
 
+from PIL import Image
+
 logger = logging.getLogger(__name__)
 
 
 class DisplayDriver:
     partial_count = 0
 
-    def init(self):
+    asleep = False
+
+    def init(self) -> None:
         raise NotImplementedError
 
-    def render(self, image, full_refresh=False):
+    def render(self, image: Image.Image, full_refresh: bool = False) -> None:
         raise NotImplementedError
 
-    def sleep(self):
-        raise NotImplementedError
-
-    def cleanup(self):
+    def sleep(self) -> None:
+        """Power the panel down, leaving the current frame on screen."""
         raise NotImplementedError
 
     @property
-    def dimensions(self):
+    def dimensions(self) -> tuple[int, int]:
         raise NotImplementedError
 
 
 class SimulatedDisplay(DisplayDriver):
-    def __init__(self, width=296, height=128):
+    def __init__(self, width: int = 296, height: int = 128) -> None:
         self.w = width
         self.h = height
         self.partial_count = 0
         self.asleep = False
 
     @property
-    def dimensions(self):
+    def dimensions(self) -> tuple[int, int]:
         return self.w, self.h
 
-    def init(self):
+    def init(self) -> None:
         logger.info("Initialized Simulated Display")
 
-    def render(self, image, full_refresh=False):
+    def render(self, image: Image.Image, full_refresh: bool = False) -> None:
         if self.asleep:
             logger.debug("Waking simulated display")
             self.asleep = False
@@ -55,18 +57,14 @@ class SimulatedDisplay(DisplayDriver):
             self.partial_count,
         )
 
-    def sleep(self):
+    def sleep(self) -> None:
         if not self.asleep:
             logger.info("Simulated display asleep")
             self.asleep = True
 
-    def cleanup(self):
-        logger.info("Cleaned up simulated display.")
-        self.sleep()
-
 
 class EPDDisplay(DisplayDriver):
-    def __init__(self):
+    def __init__(self) -> None:
         from nova_eink_display.lib import epd2in9
 
         self.epd = epd2in9.EPD()
@@ -74,16 +72,16 @@ class EPDDisplay(DisplayDriver):
         self.asleep = False
 
     @property
-    def dimensions(self):
+    def dimensions(self) -> tuple[int, int]:
         return self.epd.height, self.epd.width
 
-    def init(self):
+    def init(self) -> None:
         self.epd.init()
         self.epd.Clear(0xFF)
         self.partial_count = 0
         self.asleep = False
 
-    def render(self, image, full_refresh=False):
+    def render(self, image: Image.Image, full_refresh: bool = False) -> None:
         if self.asleep:
             logger.debug("Waking panel from deep sleep")
             self.asleep = False
@@ -99,13 +97,10 @@ class EPDDisplay(DisplayDriver):
             self.epd.display_Partial(buffer)
             self.partial_count += 1
 
-    def sleep(self):
+    def sleep(self) -> None:
         if self.asleep:
             return
 
         logger.info("Putting panel into deep sleep")
         self.epd.sleep()
         self.asleep = True
-
-    def cleanup(self):
-        self.sleep()

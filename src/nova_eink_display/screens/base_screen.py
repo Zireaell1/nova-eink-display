@@ -3,16 +3,17 @@ import logging
 import os
 from zoneinfo import ZoneInfo
 
-from PIL import ImageFont
+from PIL import ImageDraw, ImageFont
 
 from nova_eink_display.config import FONT_DIR, TIMEZONE
+from nova_eink_display.layout import Layout
 
 logger = logging.getLogger(__name__)
 
 
 class Theme:
     @staticmethod
-    def load_font(name: str, size: int):
+    def load_font(name: str, size: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
         path = os.path.join(FONT_DIR, name)
         try:
             return ImageFont.truetype(path, size)
@@ -20,39 +21,56 @@ class Theme:
             logger.warning(f"Font '{name}' not found. Falling back to default.")
             return ImageFont.load_default()
 
-    def __init__(self):
-        self.title = self.load_font("slkscr.ttf", 16)
+    def __init__(self) -> None:
         self.mono = self.load_font("slkscr.ttf", 8)
-        self.mono_sm = self.load_font("slkscr.ttf", 8)
-        self.mono_lg = self.load_font("slkscr.ttf", 8)
 
 
 theme = Theme()
 
 
 class BaseScreen:
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int) -> None:
         self.width = width
         self.height = height
+        self.layout = Layout(width, height)
 
     def draw_header(
-        self, draw, title: str = "root@nova:~#", invert: bool = False, now=None
-    ):
+        self,
+        draw: ImageDraw.ImageDraw,
+        title: str = "root@nova:~#",
+        invert: bool = False,
+        now: datetime.datetime | None = None,
+    ) -> None:
         now = now or datetime.datetime.now(ZoneInfo(TIMEZONE))
         clock = now.strftime("%H:%M")
 
+        layout = self.layout
         bg_color = 255 if invert else 0
         fg_color = 0 if invert else 255
 
-        draw.rectangle((0, 0, self.width, 16), fill=bg_color)
-
-        draw.text((4, 8), title, font=theme.mono_sm, fill=fg_color, anchor="lm")
+        draw.rectangle((0, 0, layout.width, layout.header_bottom), fill=bg_color)
 
         draw.text(
-            (self.width - 4, 8), clock, font=theme.mono_sm, fill=fg_color, anchor="rm"
+            (layout.margin, layout.header_middle),
+            title,
+            font=theme.mono,
+            fill=fg_color,
+            anchor="lm",
+        )
+        draw.text(
+            (layout.width - layout.margin, layout.header_middle),
+            clock,
+            font=theme.mono,
+            fill=fg_color,
+            anchor="rm",
         )
 
-    def draw_footer(self, draw, ups_val: float | None, uptime: str = "--"):
+    def draw_footer(
+        self,
+        draw: ImageDraw.ImageDraw,
+        ups_val: float | None,
+        uptime: str = "--",
+    ) -> None:
         if ups_val is None:
             left_text = "UPS:[ -- ]"
         else:
@@ -61,11 +79,23 @@ class BaseScreen:
 
         right_text = f"UP: {uptime}"
 
-        draw.rectangle((0, 112, self.width, 128), fill=255)
-        draw.line((0, 112, self.width, 112), fill=0, width=1)
-
-        draw.text((4, 120), left_text, font=theme.mono_sm, fill=0, anchor="lm")
+        layout = self.layout
+        draw.rectangle((0, layout.footer_top, layout.width, layout.height), fill=255)
+        draw.line(
+            (0, layout.footer_top, layout.width, layout.footer_top), fill=0, width=1
+        )
 
         draw.text(
-            (self.width - 4, 120), right_text, font=theme.mono_sm, fill=0, anchor="rm"
+            (layout.margin, layout.footer_middle),
+            left_text,
+            font=theme.mono,
+            fill=0,
+            anchor="lm",
+        )
+        draw.text(
+            (layout.width - layout.margin, layout.footer_middle),
+            right_text,
+            font=theme.mono,
+            fill=0,
+            anchor="rm",
         )

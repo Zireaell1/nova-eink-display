@@ -1,17 +1,14 @@
-import logging
+import datetime
 import textwrap
+
+from PIL import ImageDraw
 
 from .base_screen import BaseScreen, theme
 
-logger = logging.getLogger(__name__)
-
 
 class MainScreen(BaseScreen):
-    def __init__(self, width, height):
-        super().__init__(width, height)
-
     @staticmethod
-    def format_uptime(seconds):
+    def format_uptime(seconds: float | None) -> str:
         if seconds is None:
             return "--"
 
@@ -24,7 +21,9 @@ class MainScreen(BaseScreen):
             return f"{hours}h"
 
     @staticmethod
-    def _dotted_rectangle(draw, box, step=2):
+    def _dotted_rectangle(
+        draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], step: int = 2
+    ) -> None:
         x0, y0, x1, y1 = box
 
         for px in range(x0, x1 + 1, step):
@@ -35,23 +34,39 @@ class MainScreen(BaseScreen):
             draw.point((x0, py), fill=0)
             draw.point((x1, py), fill=0)
 
-    def draw_block_bar(self, draw, x, y, value, max_val=100, width=112):
-        draw.rectangle((x, y, x + width, y + 6), outline=0)
+    def draw_block_bar(
+        self,
+        draw: ImageDraw.ImageDraw,
+        x: int,
+        y: int,
+        value: float | None,
+        max_val: float = 100,
+        width: int | None = None,
+    ) -> None:
+        height = self.layout.bar_height
+        width = self.layout.column_width if width is None else width
+
+        draw.rectangle((x, y, x + width, y + height), outline=0)
 
         if value is None:
             for px in range(x + 3, x + width, 4):
-                draw.point((px, y + 3), fill=0)
+                draw.point((px, y + height // 2), fill=0)
             return
 
         ratio = max(0.0, min(1.0, value / max_val))
         filled_width = int(ratio * width)
 
         if filled_width > 0:
-            draw.rectangle((x + 1, y + 1, x + filled_width, y + 5), fill=0)
+            draw.rectangle((x + 1, y + 1, x + filled_width, y + height - 1), fill=0)
 
-    def draw_status_blocks(self, draw, x, y, services):
-        box_size = 12
-        spacing = 4
+    def draw_status_blocks(
+        self,
+        draw: ImageDraw.ImageDraw,
+        x: int,
+        y: int,
+        services: dict[str, float | None],
+    ) -> None:
+        box_size = self.layout.status_box
         current_x = x
 
         for label, state in services.items():
@@ -59,93 +74,125 @@ class MainScreen(BaseScreen):
 
             if state is None:
                 self._dotted_rectangle(draw, box)
-                draw.text((current_x + 3, y), label, font=theme.mono_sm, fill=0)
+                draw.text((current_x + 3, y), label, font=theme.mono, fill=0)
             elif state:
                 draw.rectangle(box, outline=0, fill=255)
-                draw.text((current_x + 3, y), label, font=theme.mono_sm, fill=0)
+                draw.text((current_x + 3, y), label, font=theme.mono, fill=0)
             else:
                 draw.rectangle(box, outline=0, fill=0)
-                draw.text((current_x + 3, y), label, font=theme.mono_sm, fill=255)
+                draw.text((current_x + 3, y), label, font=theme.mono, fill=255)
 
-            current_x += box_size + spacing
+            current_x += box_size + self.layout.margin
 
-    def draw_error_panel(self, draw_buffer, sys_error, x=4, y=30, width=14):
-        for line in textwrap.wrap(f"SYS_ERR: {sys_error}", width=width):
-            draw_buffer.text((x, y), line, font=theme.mono, fill=0)
-            y += 16
+    def _draw_wrapped(
+        self, draw: ImageDraw.ImageDraw, lines: list[str], y: int
+    ) -> None:
+        for line in lines:
+            draw.text((self.layout.margin, y), line, font=theme.mono, fill=0)
+            y += self.layout.line_height
 
-    def draw_alert_panel(self, draw_buffer, alerts):
-        draw_buffer.rectangle((4, 24, 122, 36), fill=0)
-        draw_buffer.text((63, 30), "SYS FAULT", font=theme.mono, fill=255, anchor="mm")
+    def draw_error_panel(self, draw: ImageDraw.ImageDraw, sys_error: str) -> None:
+        lines = textwrap.wrap(f"SYS_ERR: {sys_error}", width=self.layout.wrap_columns)
+        self._draw_wrapped(draw, lines, self.layout.header_bottom + 14)
 
-        y_offset = 44
+    def draw_alert_panel(self, draw: ImageDraw.ImageDraw, alerts: list[str]) -> None:
+        layout = self.layout
+
+        draw.rectangle(
+            (
+                layout.margin,
+                layout.header_bottom + 8,
+                layout.column_end,
+                layout.header_bottom + 20,
+            ),
+            fill=0,
+        )
+        draw.text(
+            (layout.margin + layout.column_width // 2, layout.header_bottom + 14),
+            "SYS FAULT",
+            font=theme.mono,
+            fill=255,
+            anchor="mm",
+        )
+
+        y_offset = layout.panel_top
         max_lines = 4
 
         display_lines = []
         for alert in alerts:
-            wrapped_text = textwrap.wrap(alert, width=14)
+            wrapped_text = textwrap.wrap(alert, width=layout.wrap_columns)
             for i, line in enumerate(wrapped_text):
-                if i == 0:
-                    display_lines.append(f"> {line}")
-                else:
-                    display_lines.append(f"  {line}")
+                display_lines.append(f"> {line}" if i == 0 else f"  {line}")
 
         for i, line in enumerate(display_lines):
             if i == max_lines - 1 and len(display_lines) > max_lines:
-                draw_buffer.text((4, y_offset), "+ MORE...", font=theme.mono, fill=0)
+                draw.text(
+                    (layout.margin, y_offset), "+ MORE...", font=theme.mono, fill=0
+                )
                 break
 
-            draw_buffer.text((4, y_offset), line, font=theme.mono, fill=0)
-            y_offset += 16
+            draw.text((layout.margin, y_offset), line, font=theme.mono, fill=0)
+            y_offset += layout.line_height
 
-    def draw_offline(self, draw_buffer, now):
-        self.draw_header(draw_buffer, now=now)
-        self.draw_footer(draw_buffer, None, "--")
+    def draw_offline(self, draw: ImageDraw.ImageDraw, now: datetime.datetime) -> None:
+        self.draw_header(draw, now=now)
+        self.draw_footer(draw, None, "--")
 
-        draw_buffer.text((4, 44), "OFFLINE", font=theme.mono, fill=0)
-        draw_buffer.text(
-            (4, 60), f"SINCE {now.strftime('%H:%M')}", font=theme.mono, fill=0
+        self._draw_wrapped(
+            draw, ["OFFLINE", f"SINCE {now.strftime('%H:%M')}"], self.layout.panel_top
         )
 
-    def draw(self, draw_buffer, data, active_alerts=None, now=None):
+    def draw(
+        self,
+        draw: ImageDraw.ImageDraw,
+        data: dict,
+        active_alerts: list[str] | None = None,
+        now: datetime.datetime | None = None,
+    ) -> None:
         if active_alerts is None:
             active_alerts = []
 
+        layout = self.layout
         stats = data.get("stats", {})
         sys_error = data.get("error")
 
-        # Header
-        self.draw_header(draw_buffer, now=now)
+        self.draw_header(draw, now=now)
 
-        # Footer
-        ups_val = stats.get("ups_charge")
-        formatted_uptime = self.format_uptime(stats.get("uptime"))
-        self.draw_footer(draw_buffer, ups_val, formatted_uptime)
+        self.draw_footer(
+            draw, stats.get("ups_charge"), self.format_uptime(stats.get("uptime"))
+        )
 
         if sys_error:
-            self.draw_error_panel(draw_buffer, sys_error)
+            self.draw_error_panel(draw, sys_error)
             return
 
         if active_alerts:
-            self.draw_alert_panel(draw_buffer, active_alerts)
-        else:
-            COL_START = 4
+            self.draw_alert_panel(draw, active_alerts)
+            return
 
-            # CPU Stats
-            cpu_val = stats.get("cpu")
-            cpu_text = f"CPU > {cpu_val:2.0f}%" if cpu_val is not None else "CPU >  --"
-            draw_buffer.text((COL_START, 26), cpu_text, font=theme.mono, fill=0)
-            draw_buffer.text((COL_START + 1, 26), cpu_text, font=theme.mono, fill=0)
-            self.draw_block_bar(draw_buffer, COL_START, 38, cpu_val, width=118)
+        for row, (label, key) in enumerate((("CPU", "cpu"), ("MEM", "mem"))):
+            value = stats.get(key)
+            text = f"{label} > {value:2.0f}%" if value is not None else f"{label} >  --"
 
-            # RAM Stats
-            mem_val = stats.get("mem")
-            mem_text = f"MEM > {mem_val:2.0f}%" if mem_val is not None else "MEM >  --"
-            draw_buffer.text((COL_START, 58), mem_text, font=theme.mono, fill=0)
-            draw_buffer.text((COL_START + 1, 58), mem_text, font=theme.mono, fill=0)
-            self.draw_block_bar(draw_buffer, COL_START, 70, mem_val, width=118)
+            draw.text(
+                (layout.column_start, layout.stat_row_y(row)),
+                text,
+                font=theme.mono,
+                fill=0,
+            )
+            draw.text(
+                (layout.column_start + 1, layout.stat_row_y(row)),
+                text,
+                font=theme.mono,
+                fill=0,
+            )
+            self.draw_block_bar(
+                draw, layout.column_start, layout.stat_bar_y(row), value
+            )
 
-            # Service Grid
-            service_health = {"B": stats.get("backup_status")}
-
-            self.draw_status_blocks(draw_buffer, COL_START, 90, service_health)
+        self.draw_status_blocks(
+            draw,
+            layout.column_start,
+            layout.stat_row_y(2),
+            {"B": stats.get("backup_status")},
+        )

@@ -12,6 +12,8 @@ from nova_eink_display.config import (
     BLINK_SECONDS,
     FETCH_INTERVAL,
     MAX_PARTIAL_REFRESHES,
+    METRICS_ADDRESS,
+    METRICS_PORT,
     NIGHT_END_HOUR,
     NIGHT_START_HOUR,
     PROMETHEUS_API_PASSWORD,
@@ -24,6 +26,7 @@ from nova_eink_display.config import (
     TIMEZONE,
 )
 from nova_eink_display.display import EPDDisplay, SimulatedDisplay
+from nova_eink_display.metrics import METRICS, serve
 from nova_eink_display.prometheus import PrometheusClient
 from nova_eink_display.renderer import UIRenderer
 
@@ -69,8 +72,22 @@ class Dashboard:
         logger.info("Stop requested, finishing current tick...")
         self.stopping.set()
 
+    def render(self, frame, full_refresh=False):
+        before = self.display.partial_count
+        self.display.render(frame, full_refresh=full_refresh)
+
+        kind = "partial" if self.display.partial_count > before else "full"
+        METRICS.record_refresh(kind, self.display.partial_count)
+
     def tick(self, now):
+        started = time.monotonic()
         data = self.client.fetch_all()
+        METRICS.record_fetch(
+            time.monotonic() - started,
+            data.get("error"),
+            len(data.get("missing", [])),
+        )
+
         alerts = evaluate_alerts(data.get("stats", {}))
 
         error = data.get("error")
@@ -78,6 +95,7 @@ class Dashboard:
             alerts.insert(0, f"API ERR: {error}")
 
         night = not alerts and is_night(now)
+        METRICS.record_tick(len(alerts), self.character_mood, self.display.asleep)
 
         if night and self.sleeping:
             return None, None
@@ -87,7 +105,7 @@ class Dashboard:
         alerts_changed = alerts != self.previous_alerts
         ghosted = self.display.partial_count >= MAX_PARTIAL_REFRESHES
 
-        self.display.render(frame, full_refresh=alerts_changed or ghosted)
+        self.render(frame, full_refresh=alerts_changed or ghosted)
         self.previous_alerts = alerts
 
         if night:
@@ -120,6 +138,7 @@ class Dashboard:
                 self.failures = 0
             except Exception:
                 self.failures += 1
+                METRICS.record_failure()
                 logger.exception("Tick failed (%d in a row)", self.failures)
                 if self.failures >= MAX_CONSECUTIVE_FAILURES:
                     raise
@@ -130,10 +149,14 @@ class Dashboard:
 
             self.stopping.wait(max(0.0, next_tick - time.monotonic()))
 
+    @property
+    def character_mood(self):
+        return self.ui.character.last_mood
+
     def shutdown(self):
         frame = self.ui.render_offline_frame(datetime.now(self.tz))
-        self.display.render(frame, full_refresh=True)
-        self.display.cleanup()
+        self.render(frame, full_refresh=True)
+        self.display.sleep()
 
     def blink(self, frame, blink_frame, next_tick):
         budget = next_tick - time.monotonic() - BLINK_SECONDS - 1.0
@@ -143,12 +166,12 @@ class Dashboard:
         if self.stopping.wait(random.uniform(0, budget)):
             return
 
-        self.display.render(blink_frame, full_refresh=False)
+        self.render(blink_frame)
 
         if self.stopping.wait(BLINK_SECONDS):
             return
 
-        self.display.render(frame, full_refresh=False)
+        self.render(frame)
 
 
 def main():
@@ -180,6 +203,8 @@ def main():
 
     signal.signal(signal.SIGTERM, dashboard.request_stop)
     signal.signal(signal.SIGINT, dashboard.request_stop)
+
+    serve(METRICS_ADDRESS, METRICS_PORT)
 
     display.init()
 

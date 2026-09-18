@@ -16,6 +16,8 @@ class Character:
         self.default_char = "character-happy.png"
         self.image_cache = {}
 
+        self.last_mood = "unknown"
+
     def _determine_reaction(self, stats, sys_error, active_alerts, now=None):
         if sys_error:
             return "disconnected"
@@ -76,6 +78,7 @@ class Character:
         self, stats, sys_error, active_alerts, is_blinking=False, now=None
     ):
         mood = self._determine_reaction(stats, sys_error, active_alerts, now)
+        self.last_mood = mood
 
         if not is_blinking:
             logger.debug(f"Selected mood: {mood}")
