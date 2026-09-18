@@ -58,6 +58,7 @@ def main() -> int:
         METRICS.record_fetch(0.25, None, 0)
         METRICS.record_fetch(0.25, "timeout", 1)
         METRICS.record_tick(2, "happy", False)
+        METRICS.record_tick(2, "sleep", True)
         METRICS.record_failure()
         METRICS.record_frame(Image.new("1", (296, 128), 255))
 
@@ -89,8 +90,18 @@ def main() -> int:
             'eink_refresh_total{kind="partial"} 1' in text, "partial refreshes counted"
         )
         check(
-            'eink_character_mood{mood="happy"} 1' in text, "mood is exported as a label"
+            'eink_character_mood{mood="sleep"} 1' in text,
+            "the mood on screen is exported as 1",
         )
+        check(
+            'eink_character_mood{mood="happy"} 0' in text,
+            "every previously seen mood keeps a series at 0",
+        )
+        check(
+            'eink_character_mood{mood="unknown"}' not in text,
+            "the pre-first-tick placeholder drops out once a real mood arrives",
+        )
+        check("eink_panel_asleep 1" in text, "panel_asleep follows the last tick")
         check(
             'eink_fetch_errors_total{reason="timeout"} 1' in text,
             "fetch errors are labelled",

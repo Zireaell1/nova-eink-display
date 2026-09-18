@@ -11,6 +11,10 @@ CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 PREVIEW_CONTENT_TYPE = "image/png"
 
 
+def _escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
 class Metrics:
     def __init__(self) -> None:
         self._lock = threading.Lock()
@@ -26,6 +30,7 @@ class Metrics:
         self.fetch_duration_seconds = 0.0
         self.last_render_timestamp = 0.0
         self.mood = "unknown"
+        self.moods_seen: set[str] = set()
         self.frame: Any = None
 
     def record_refresh(self, kind: str, partials_since_full: int) -> None:
@@ -47,6 +52,7 @@ class Metrics:
         with self._lock:
             self.alerts_active = alerts
             self.mood = mood
+            self.moods_seen.add(mood)
             self.panel_asleep = int(asleep)
 
     def record_failure(self) -> None:
@@ -99,10 +105,13 @@ class Metrics:
                 "# HELP eink_tick_failures_total Ticks that raised.",
                 "# TYPE eink_tick_failures_total counter",
                 f"eink_tick_failures_total {self.tick_failures_total}",
-                "# HELP eink_character_mood The reaction currently displayed.",
+                "# HELP eink_character_mood 1 for the reaction on screen, 0 for every other one seen.",
                 "# TYPE eink_character_mood gauge",
-                f'eink_character_mood{{mood="{self.mood}"}} 1',
             ]
+
+            for mood in sorted(self.moods_seen | {self.mood}):
+                value = int(mood == self.mood)
+                lines.append(f'eink_character_mood{{mood="{_escape(mood)}"}} {value}')
 
             if self.fetch_errors_total:
                 lines += [
@@ -110,7 +119,7 @@ class Metrics:
                     "# TYPE eink_fetch_errors_total counter",
                 ]
                 for reason, count in sorted(self.fetch_errors_total.items()):
-                    label = reason.replace("\\", "\\\\").replace('"', '\\"')
+                    label = _escape(reason)
                     lines.append(f'eink_fetch_errors_total{{reason="{label}"}} {count}')
 
             return "\n".join(lines) + "\n"

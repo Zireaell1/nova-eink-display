@@ -96,36 +96,38 @@ class Dashboard:
             alerts.insert(0, f"API ERR: {error}")
 
         night = not alerts and is_night(now)
-        METRICS.record_tick(len(alerts), self.character_mood, self.display.asleep)
 
-        if night and self.sleeping:
-            return None, None
+        try:
+            if night and self.sleeping:
+                return None, None
 
-        frame = self.ui.render_frame(data, alerts, now=now)
+            frame = self.ui.render_frame(data, alerts, now=now)
 
-        alerts_changed = alerts != self.previous_alerts
-        ghosted = self.display.partial_count >= MAX_PARTIAL_REFRESHES
+            alerts_changed = alerts != self.previous_alerts
+            ghosted = self.display.partial_count >= MAX_PARTIAL_REFRESHES
 
-        self.render(frame, full_refresh=alerts_changed or ghosted)
-        self.previous_alerts = alerts
+            self.render(frame, full_refresh=alerts_changed or ghosted)
+            self.previous_alerts = alerts
 
-        if night:
-            self.display.sleep()
-            self.sleeping = True
-            logger.info("Night mode: panel asleep until %02d:00", NIGHT_END_HOUR)
-            return frame, None
+            if night:
+                self.display.sleep()
+                self.sleeping = True
+                logger.info("Night mode: panel asleep until %02d:00", NIGHT_END_HOUR)
+                return frame, None
 
-        self.sleeping = False
+            self.sleeping = False
 
-        if alerts or random.random() >= BLINK_PROBABILITY:
-            return frame, None
+            if alerts or random.random() >= BLINK_PROBABILITY:
+                return frame, None
 
-        blink = self.ui.render_frame(data, alerts, is_blinking=True, now=now)
+            blink = self.ui.render_frame(data, alerts, is_blinking=True, now=now)
 
-        if blink.tobytes() == frame.tobytes():
-            return frame, None
+            if blink.tobytes() == frame.tobytes():
+                return frame, None
 
-        return frame, blink
+            return frame, blink
+        finally:
+            METRICS.record_tick(len(alerts), self.character_mood, self.display.asleep)
 
     def run(self):
         next_tick = time.monotonic()
