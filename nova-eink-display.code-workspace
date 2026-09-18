@@ -102,6 +102,13 @@
 				"problemMatcher": []
 			},
 			{
+				"label": "Render states: invert colors",
+				"type": "shell",
+				"command": "uv run python -m nova_eink_display.tools.render_states --invert",
+				"detail": "Writes PNGs + all-states.png to ./frames with inverted colors",
+				"problemMatcher": []
+			},
+			{
 				"label": "Lint: ruff check",
 				"type": "shell",
 				"command": "uv run ruff check ./src",
