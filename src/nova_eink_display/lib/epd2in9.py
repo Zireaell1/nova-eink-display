@@ -32,6 +32,7 @@
 #
 
 import logging
+import time
 from typing import cast
 
 from PIL import Image
@@ -39,6 +40,14 @@ from PIL import Image
 from . import epdconfig
 
 logger = logging.getLogger(__name__)
+
+
+class EPDTimeoutError(RuntimeError):
+    """The busy pin never went low. The panel is wedged or miswired."""
+
+
+BUSY_TIMEOUT_MS = 5_000
+BUSY_TIMEOUT_FULL_MS = 20_000
 
 EPD_WIDTH = 128
 EPD_HEIGHT = 296
@@ -194,22 +203,22 @@ class EPD:
         epdconfig.spi_writebyte2(data)
         # epdconfig.digital_write(self.cs_pin, 1)
 
-    def wait_until_idle(self) -> None:
-        timeout = 0
+    def wait_until_idle(self, timeout_ms: int = BUSY_TIMEOUT_MS) -> None:
+        deadline = time.monotonic() + timeout_ms / 1000.0
+
         while epdconfig.digital_read(self.busy_pin) == 1:
-            epdconfig.delay_ms(10)
-            timeout += 1
-            if timeout > 400:
-                logger.warning(
-                    "HARDWARE TIMEOUT: e-Paper busy pin is unresponsive. Check GPIO connection!"
+            if time.monotonic() >= deadline:
+                raise EPDTimeoutError(
+                    f"e-Paper busy pin still high after {timeout_ms} ms. "
+                    "Check the GPIO connection."
                 )
-                break
+            epdconfig.delay_ms(10)
 
     def TurnOnDisplay(self) -> None:
         self.send_command(CMD_DISPLAY_UPDATE_CTRL_2)
         self.send_data(0xC7)
         self.send_command(CMD_MASTER_ACTIVATION)
-        self.wait_until_idle()
+        self.wait_until_idle(BUSY_TIMEOUT_FULL_MS)
 
     def TurnOnDisplay_Partial(self) -> None:
         self.send_command(CMD_DISPLAY_UPDATE_CTRL_2)
