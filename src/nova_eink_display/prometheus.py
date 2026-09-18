@@ -1,4 +1,5 @@
 import logging
+import math
 
 import requests
 from requests.auth import HTTPBasicAuth
@@ -7,63 +8,101 @@ logger = logging.getLogger(__name__)
 
 
 class PrometheusClient:
-    def __init__(self, url, queries, username=None, password=None):
+    def __init__(self, url, queries, username=None, password=None, timeout=(3.0, 7.0)):
         self.url = url.rstrip("/")
         self.queries = queries
+        self.timeout = timeout
+
+        self.combined_query = " or ".join(
+            f'label_replace({expr}, "key", "{name}", "", "")'
+            for name, expr in queries.items()
+        )
+
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": "E-Ink-Dashboard/1.0"})
-
         if username and password:
             self.session.auth = HTTPBasicAuth(username, password)
 
         logger.info(
-            f"PrometheusClient initialized for {self.url} (Auth: {'Yes' if self.session.auth else 'No'})"
+            "PrometheusClient initialized for %s (auth: %s, %d metrics in 1 request)",
+            self.url,
+            "yes" if self.session.auth else "no",
+            len(queries),
+        )
+        logger.debug("Combined query:\n%s", self.combined_query)
+
+    def _empty(self, error):
+        return {"stats": {}, "error": error, "missing": sorted(self.queries)}
+
+    def _log_result(self, result, stats, missing, elapsed):
+        if not logger.isEnabledFor(logging.DEBUG):
+            return
+
+        rows = []
+        for series in result:
+            labels = dict(series.get("metric", {}))
+            key = labels.pop("key", "<no key>")
+            value = series.get("value")
+            raw = str(value[1]) if isinstance(value, list) and len(value) > 1 else "?"
+            stray = f"   stray labels: {labels}" if labels else ""
+            rows.append(f"  {key:<14}{raw:>24}{stray}")
+
+        logger.debug(
+            "Prometheus returned %d series in %.0f ms:\n%s",
+            len(result),
+            elapsed * 1000,
+            "\n".join(rows) or "  (empty)",
+        )
+        logger.debug(
+            "Parsed %d/%d metrics:\n%s%s",
+            len(stats),
+            len(self.queries),
+            "\n".join(f"  {k:<14}{v:>24.4f}" for k, v in sorted(stats.items()))
+            or "  (none)",
+            f"\n  missing: {', '.join(missing)}" if missing else "",
         )
 
-    def query(self, query_str):
+    def fetch_all(self):
         try:
             resp = self.session.get(
-                f"{self.url}/api/v1/query", params={"query": query_str}, timeout=10
+                f"{self.url}/api/v1/query",
+                params={"query": self.combined_query},
+                timeout=self.timeout,
             )
-
             resp.raise_for_status()
-
-            data = resp.json()
-            result = data.get("data", {}).get("result", [])
-
-            if not result:
-                return None, "No data"
-
-            val_str = result[0].get("value", [0, "0"])[1]
-            return float(val_str), None
-
+            payload = resp.json()
         except requests.exceptions.RequestException as e:
-            logger.error(f"Prometheus HTTP/Network Error: {e}")
-            return None, "Unreachable"
-        except (ValueError, TypeError, IndexError) as e:
-            logger.error(f"Prometheus data parse error: {e}")
-            return None, "Parse Error"
+            logger.error("Prometheus unreachable: %s", e)
+            return self._empty("Prometheus Unreachable")
+        except ValueError as e:
+            logger.error("Prometheus returned invalid JSON: %s", e)
+            return self._empty("Parse Error")
 
-    def fetch_all(self):
-        results = {}
-        missing_metrics = []
-        server_down = False
+        if payload.get("status") != "success":
+            logger.error("Prometheus rejected the query: %s", payload.get("error"))
+            return self._empty("Query Error")
 
-        for key, q in self.queries.items():
-            val, err = self.query(q)
+        result = payload.get("data", {}).get("result", [])
 
-            if err == "Unreachable":
-                server_down = True
-                break
-            elif err:
-                missing_metrics.append(key)
-            else:
-                results[key] = val
+        stats = {}
+        for series in result:
+            labels = series.get("metric", {})
+            name = labels.get("key")
+            if name not in self.queries:
+                continue
+            try:
+                value = float(series["value"][1])
+            except KeyError, IndexError, TypeError, ValueError:
+                logger.warning(
+                    "Unparseable value for %s: %r", name, series.get("value")
+                )
+                continue
+            if math.isnan(value):
+                logger.debug("Dropping NaN value for %s", name)
+                continue
+            stats[name] = value
 
-        error_msg = None
-        if server_down:
-            error_msg = "Prometheus Unreachable"
-        elif missing_metrics:
-            error_msg = f"Missing: {', '.join(missing_metrics)}"
+        missing = sorted(set(self.queries) - set(stats))
+        self._log_result(result, stats, missing, resp.elapsed.total_seconds())
 
-        return {"stats": results, "error": error_msg}
+        return {"stats": stats, "error": None, "missing": missing}

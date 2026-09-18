@@ -1,17 +1,8 @@
 import logging
-import os
 import random
 import signal
 import sys
 import time
-
-log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
-log_level = getattr(logging, log_level_str, logging.INFO)
-
-logging.basicConfig(
-    level=log_level, format="%(asctime)s - [%(levelname)s] - %(name)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 from nova_eink_display.config import (
     ALERT_RULES,
@@ -19,6 +10,8 @@ from nova_eink_display.config import (
     FULL_REFRESH_CYCLE,
     PROMETHEUS_API_PASSWORD,
     PROMETHEUS_API_USERNAME,
+    PROMETHEUS_CONNECT_TIMEOUT,
+    PROMETHEUS_READ_TIMEOUT,
     PROMETHEUS_URL,
     QUERIES,
     SIMULATE_MODE,
@@ -26,6 +19,8 @@ from nova_eink_display.config import (
 from nova_eink_display.display import EPDDisplay, SimulatedDisplay
 from nova_eink_display.prometheus import PrometheusClient
 from nova_eink_display.renderer import UIRenderer
+
+logger = logging.getLogger(__name__)
 
 
 def evaluate_alerts(stats):
@@ -44,19 +39,29 @@ def evaluate_alerts(stats):
     return active_alerts
 
 
+def build_display():
+    if SIMULATE_MODE:
+        return SimulatedDisplay()
+
+    try:
+        return EPDDisplay()
+    except Exception:
+        logger.exception("Display hardware unavailable, falling back to simulation")
+        return SimulatedDisplay()
+
+
 def main():
     logger.info("Starting dashboard...")
 
-    if SIMULATE_MODE:
-        display = SimulatedDisplay()
-    else:
-        try:
-            display = EPDDisplay()
-        except ImportError as e:
-            logger.warning(
-                f"Hardware libraries not found. Forcing SimulatedDisplay. Error: {e}"
-            )
-            display = SimulatedDisplay()
+    budget = PROMETHEUS_CONNECT_TIMEOUT + PROMETHEUS_READ_TIMEOUT
+    if budget >= FETCH_INTERVAL:
+        logger.warning(
+            "HTTP timeout budget (%.0fs) >= FETCH_INTERVAL (%ds); ticks will overrun",
+            budget,
+            FETCH_INTERVAL,
+        )
+
+    display = build_display()
 
     def handle_exit(signum, frame):
         logger.info("Shutting down...")
@@ -70,7 +75,11 @@ def main():
     w, h = display.dimensions
     ui = UIRenderer(w, h)
     prom_client = PrometheusClient(
-        PROMETHEUS_URL, QUERIES, PROMETHEUS_API_USERNAME, PROMETHEUS_API_PASSWORD
+        PROMETHEUS_URL,
+        QUERIES,
+        PROMETHEUS_API_USERNAME,
+        PROMETHEUS_API_PASSWORD,
+        timeout=(PROMETHEUS_CONNECT_TIMEOUT, PROMETHEUS_READ_TIMEOUT),
     )
 
     refresh_counter = 0
