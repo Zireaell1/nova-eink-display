@@ -65,6 +65,9 @@ jobs:
               print("ok", m.name)
           PY
 
+      - name: Check the metrics endpoint
+        run: uv run python tests/test_metrics_endpoint.py
+
       - name: Render every dashboard state
         run: |
           if [ -d tests/golden ]; then
