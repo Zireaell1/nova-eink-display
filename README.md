@@ -21,6 +21,16 @@ The screen and Pi are mounted in my server rack using a custom 3D-printed case, 
 
 *Work in progress*
 
+## Credits
+
+* `src/nova_eink_display/lib/` is Waveshare's driver from
+  [waveshareteam/e-Paper](https://github.com/waveshareteam/e-Paper), refactored
+  but under its original MIT licence.
+* `assets/fonts/slkscr.ttf` is
+  [Silkscreen](https://github.com/googlefonts/silkscreen) by Jason Kottke,
+  SIL Open Font License 1.1. The licence travels with it in
+  `assets/fonts/OFL.txt`.
+
 ## Images
 
 > [!NOTE]
