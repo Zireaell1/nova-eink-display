@@ -62,6 +62,7 @@ class SimulatedDisplay(DisplayDriver):
 
     def cleanup(self):
         logger.info("Cleaned up simulated display.")
+        self.sleep()
 
 
 class EPDDisplay(DisplayDriver):
@@ -107,10 +108,4 @@ class EPDDisplay(DisplayDriver):
         self.asleep = True
 
     def cleanup(self):
-        if self.asleep:
-            self.epd.init()
-            self.asleep = False
-
-        self.epd.Clear(0xFF)
-        self.epd.sleep()
-        self.asleep = True
+        self.sleep()

@@ -130,6 +130,11 @@ class Dashboard:
 
             self.stopping.wait(max(0.0, next_tick - time.monotonic()))
 
+    def shutdown(self):
+        frame = self.ui.render_offline_frame(datetime.now(self.tz))
+        self.display.render(frame, full_refresh=True)
+        self.display.cleanup()
+
     def blink(self, frame, blink_frame, next_tick):
         budget = next_tick - time.monotonic() - BLINK_SECONDS - 1.0
         if budget <= 0:
@@ -158,7 +163,6 @@ def main():
         )
 
     display = build_display()
-    display.init()
 
     w, h = display.dimensions
     dashboard = Dashboard(
@@ -177,11 +181,16 @@ def main():
     signal.signal(signal.SIGTERM, dashboard.request_stop)
     signal.signal(signal.SIGINT, dashboard.request_stop)
 
+    display.init()
+
     try:
         dashboard.run()
     finally:
         logger.info("Shutting down...")
-        display.cleanup()
+        try:
+            dashboard.shutdown()
+        except Exception:
+            logger.exception("Shutdown failed; the panel may still be powered")
 
 
 if __name__ == "__main__":

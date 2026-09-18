@@ -98,6 +98,15 @@ class MainScreen(BaseScreen):
             draw_buffer.text((4, y_offset), line, font=theme.mono, fill=0)
             y_offset += 16
 
+    def draw_offline(self, draw_buffer, now):
+        self.draw_header(draw_buffer, now=now)
+        self.draw_footer(draw_buffer, None, "--")
+
+        draw_buffer.text((4, 44), "OFFLINE", font=theme.mono, fill=0)
+        draw_buffer.text(
+            (4, 60), f"SINCE {now.strftime('%H:%M')}", font=theme.mono, fill=0
+        )
+
     def draw(self, draw_buffer, data, active_alerts=None, now=None):
         if active_alerts is None:
             active_alerts = []
