@@ -6,8 +6,8 @@ from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageChops
 
-from nova_eink_display.config import BASE_DIR
-from nova_eink_display.main import evaluate_alerts
+from nova_eink_display.alerts import evaluate_alerts
+from nova_eink_display.config import BASE_DIR, QUERIES
 from nova_eink_display.renderer import UIRenderer
 
 DEFAULT_OUT = pathlib.Path(BASE_DIR) / "frames"
@@ -25,7 +25,8 @@ OK = {
 
 
 def state(name, stats, error=None, now=DAY):
-    return name, {"stats": stats, "error": error, "missing": []}, now
+    missing = sorted(set(QUERIES) - set(stats))
+    return name, {"stats": stats, "error": error, "missing": missing}, now
 
 
 STATES = [
@@ -74,14 +75,14 @@ def render(out_dir, blink=False, invert=False):
 def build_overview(frames, path, cols=3, pad=6, scale=2):
     w, h = 296, 128
     rows = (len(frames) + cols - 1) // cols
-    sheet = Image.new("L", (cols * (w + pad) + pad, rows * (h + pad) + pad), 150)
+    overview = Image.new("L", (cols * (w + pad) + pad, rows * (h + pad) + pad), 150)
 
     for i, image in enumerate(frames.values()):
         xy = (pad + (i % cols) * (w + pad), pad + (i // cols) * (h + pad))
-        sheet.paste(image.convert("L"), xy)
+        overview.paste(image.convert("L"), xy)
 
-    sheet.resize(
-        (sheet.width * scale, sheet.height * scale), Image.Resampling.NEAREST
+    overview.resize(
+        (overview.width * scale, overview.height * scale), Image.Resampling.NEAREST
     ).save(path)
 
 
@@ -106,7 +107,14 @@ def compare(frames, golden_dir):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=(
+            "Render every dashboard state to PNG, with no hardware and no "
+            "Prometheus. Nothing here reads the environment: the clock is "
+            "pinned per state, the output directory is repo-rooted and "
+            "inversion is a flag, so no .env edit can move a pixel."
+        )
+    )
     parser.add_argument(
         "--out",
         type=pathlib.Path,
@@ -117,7 +125,7 @@ def main():
     parser.add_argument(
         "--invert",
         action="store_true",
-        help="render the INVERT_COLORS look",
+        help="render the inverted look",
     )
     parser.add_argument(
         "--golden",
