@@ -11,7 +11,7 @@ class Layout:
     footer_height: int = 16
     line_height: int = 16
 
-    character_width: int = 160
+    character_width: int = 170
 
     column_width: int = 118
 
@@ -60,6 +60,10 @@ class Layout:
     def character_size(self) -> tuple[int, int]:
         left, top, right, bottom = self.character_box
         return (right - left + 1, bottom - top)
+
+    @property
+    def character_max_size(self) -> tuple[int, int]:
+        return (self.width - self.column_end, self.footer_top - self.header_bottom)
 
     @property
     def panel_top(self) -> int:

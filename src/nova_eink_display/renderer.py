@@ -34,18 +34,23 @@ class UIRenderer:
         return image
 
     def _check_size(self, mood: str, image: Image.Image) -> None:
-        expected = self.layout.character_size
-        if image.size == expected or mood in self._warned_sizes:
+        max_width, max_height = self.layout.character_max_size
+        if (
+            image.width <= max_width
+            and image.height <= max_height
+            or mood in self._warned_sizes
+        ):
             return
 
         self._warned_sizes.add(mood)
         logger.warning(
-            "character-%s.png is %sx%s, expected %sx%s; it will be cropped",
+            "character-%s.png is %sx%s; at most %sx%s fits between the stats "
+            "column and the footer, so it will be clipped",
             mood,
             image.width,
             image.height,
-            expected[0],
-            expected[1],
+            max_width,
+            max_height,
         )
 
     def _draw_character(
