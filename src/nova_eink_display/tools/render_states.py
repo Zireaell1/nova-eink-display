@@ -53,6 +53,11 @@ STATES = [
     state("mood-working", {**OK, "cpu": 88.0}),
     state("mood-concerned", {**OK, "cpu": 78.0}),
     state("mood-idle", OK, now=DAY.replace(hour=15, minute=25)),
+    # The idle pool is picked by random.Random(f"{date}_{hour}_{minute//10}"),
+    # so a pinned clock pins the reaction. These three cover the whole pool.
+    state("mood-happy", OK, now=DAY.replace(hour=9, minute=55)),
+    state("mood-music", OK, now=DAY.replace(hour=9, minute=5)),
+    state("mood-smug", OK, now=DAY.replace(hour=9, minute=25)),
     # --- hostile values ---------------------------------------------------
     state("odd-values", {**OK, "cpu": 80.0, "mem": -3.0, "uptime": -5.0}),
     state("threshold-edge", {**OK, "cpu": 90.0, "mem": 89.9}),
