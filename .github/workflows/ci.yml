@@ -23,11 +23,11 @@ jobs:
       - name: Install ruff-action and run Ruff Linter
         uses: astral-sh/ruff-action@v4.1.0
         with:
-          src: "./src"
+          src: "."
           version-file: "uv.lock"
 
       - name: Run Ruff Formatter
-        run: ruff format --check ./src
+        run: ruff format --check .
 
   verify:
     name: Verify
