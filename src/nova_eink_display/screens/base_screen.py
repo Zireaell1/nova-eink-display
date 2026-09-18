@@ -49,9 +49,13 @@ class BaseScreen:
             (self.width - 4, 8), now, font=theme.mono_sm, fill=fg_color, anchor="rm"
         )
 
-    def draw_footer(self, draw, ups_val: float, uptime: str = ""):
-        ups_status = "OK" if ups_val > 90 else "WARN"
-        left_text = f"UPS:[{ups_status}] {int(ups_val)}%"
+    def draw_footer(self, draw, ups_val: float | None, uptime: str = "--"):
+        if ups_val is None:
+            left_text = "UPS:[ -- ]"
+        else:
+            status = "OK" if ups_val > 90 else "WARN"
+            left_text = f"UPS:[{status}] {ups_val:2.0f}%"
+
         right_text = f"UP: {uptime}"
 
         draw.rectangle((0, 112, self.width, 128), fill=255)
