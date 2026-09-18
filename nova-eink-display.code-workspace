@@ -104,14 +104,14 @@
 			{
 				"label": "Lint: ruff check",
 				"type": "shell",
-				"command": "uv run --with ruff ruff check ./src",
+				"command": "uv run ruff check ./src",
 				"problemMatcher": [],
 				"group": "test"
 			},
 			{
 				"label": "Lint: ruff format --check",
 				"type": "shell",
-				"command": "uv run --with ruff ruff format --check ./src",
+				"command": "uv run ruff format --check ./src",
 				"problemMatcher": [],
 				"group": "test"
 			},
