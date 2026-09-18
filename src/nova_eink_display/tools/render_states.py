@@ -53,7 +53,16 @@ STATES = [
     state("mood-working", {**OK, "cpu": 88.0}),
     state("mood-concerned", {**OK, "cpu": 78.0}),
     state("mood-idle", OK, now=DAY.replace(hour=15, minute=25)),
+    # --- hostile values ---------------------------------------------------
+    state("odd-values", {**OK, "cpu": 80.0, "mem": -3.0, "uptime": -5.0}),
+    state("threshold-edge", {**OK, "cpu": 90.0, "mem": 89.9}),
 ]
+
+
+def extra_frames(invert=False):
+    return {
+        "offline": UIRenderer(296, 128).render_offline_frame(DAY, invert=invert),
+    }
 
 
 def render(out_dir, blink=False, invert=False):
@@ -66,6 +75,10 @@ def render(out_dir, blink=False, invert=False):
         if data["error"]:
             alerts.insert(0, f"API ERR: {data['error']}")
         image = ui.render_frame(data, alerts, is_blinking=blink, now=now, invert=invert)
+        image.save(out_dir / f"{name}.png")
+        frames[name] = image
+
+    for name, image in extra_frames(invert=invert).items():
         image.save(out_dir / f"{name}.png")
         frames[name] = image
 

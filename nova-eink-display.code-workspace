@@ -76,7 +76,7 @@
 				"label": "Render states",
 				"type": "shell",
 				"command": "uv run python -m nova_eink_display.tools.render_states",
-				"detail": "Writes 18 PNGs + all-states.png to ./frames",
+				"detail": "Writes PNGs + all-states.png to ./frames",
 				"problemMatcher": [],
 				"group": {
 					"kind": "build",

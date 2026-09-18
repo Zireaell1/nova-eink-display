@@ -9,7 +9,7 @@ from .base_screen import BaseScreen, theme
 class MainScreen(BaseScreen):
     @staticmethod
     def format_uptime(seconds: float | None) -> str:
-        if seconds is None:
+        if seconds is None or seconds < 0:
             return "--"
 
         days = int(seconds // 86400)
