@@ -78,6 +78,7 @@ class Dashboard:
 
         kind = "partial" if self.display.partial_count > before else "full"
         METRICS.record_refresh(kind, self.display.partial_count)
+        METRICS.record_frame(frame)
 
     def tick(self, now):
         started = time.monotonic()

@@ -1,11 +1,14 @@
+import io
 import logging
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
+PREVIEW_CONTENT_TYPE = "image/png"
 
 
 class Metrics:
@@ -23,6 +26,7 @@ class Metrics:
         self.fetch_duration_seconds = 0.0
         self.last_render_timestamp = 0.0
         self.mood = "unknown"
+        self.frame: Any = None
 
     def record_refresh(self, kind: str, partials_since_full: int) -> None:
         with self._lock:
@@ -48,6 +52,21 @@ class Metrics:
     def record_failure(self) -> None:
         with self._lock:
             self.tick_failures_total += 1
+
+    def record_frame(self, frame: Any) -> None:
+        with self._lock:
+            self.frame = frame
+
+    def preview(self) -> bytes | None:
+        with self._lock:
+            frame = self.frame
+
+        if frame is None:
+            return None
+
+        buffer = io.BytesIO()
+        frame.save(buffer, format="PNG")
+        return buffer.getvalue()
 
     def render(self) -> str:
         with self._lock:
@@ -102,14 +121,27 @@ METRICS = Metrics()
 
 class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
-        if self.path.split("?")[0] != "/metrics":
-            self.send_error(404)
+        route = self.path.split("?")[0]
+
+        if route == "/metrics":
+            self._send(200, CONTENT_TYPE, METRICS.render().encode())
             return
 
-        body = METRICS.render().encode()
-        self.send_response(200)
-        self.send_header("Content-Type", CONTENT_TYPE)
+        if route == "/preview.png":
+            body = METRICS.preview()
+            if body is None:
+                self.send_error(503, "No frame rendered yet")
+                return
+            self._send(200, PREVIEW_CONTENT_TYPE, body)
+            return
+
+        self.send_error(404)
+
+    def _send(self, status: int, content_type: str, body: bytes) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
@@ -129,5 +161,9 @@ def serve(address: str, port: int) -> ThreadingHTTPServer | None:
         return None
 
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    logger.info("Metrics endpoint on http://%s:%d/metrics", address, port)
+    logger.info(
+        "Metrics endpoint on http://%s:%d/metrics (preview at /preview.png)",
+        address,
+        server.server_port,
+    )
     return server
