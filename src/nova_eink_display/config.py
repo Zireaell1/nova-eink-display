@@ -28,6 +28,9 @@ STATE_DIRECTORY = os.getenv("STATE_DIRECTORY", "")
 METRICS_ADDRESS = os.getenv("METRICS_ADDRESS", "127.0.0.1")
 METRICS_PORT = int(os.getenv("METRICS_PORT", "9110"))
 
+PREVIEW_ADDRESS = os.getenv("PREVIEW_ADDRESS", "")
+PREVIEW_PORT = int(os.getenv("PREVIEW_PORT", "0"))
+
 SIMULATE_MODE = os.getenv("SIMULATE", "false").lower() == "true"
 INSTANCE = os.getenv("INSTANCE", "")
 

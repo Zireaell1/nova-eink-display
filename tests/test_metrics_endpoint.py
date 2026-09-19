@@ -11,6 +11,7 @@ import nova_eink_display.metrics as metrics_module
 from nova_eink_display.metrics import (
     CONTENT_TYPE,
     PREVIEW_CONTENT_TYPE,
+    PREVIEW_ROUTES,
     Metrics,
     serve,
 )
@@ -41,9 +42,6 @@ def free_port() -> int:
 
 @pytest.fixture
 def metrics(monkeypatch: pytest.MonkeyPatch) -> Metrics:
-    """A fresh Metrics in place of the module global, so tests cannot leak
-    counters into each other. _Handler reads the global per request, so the
-    running server picks this up too."""
     fresh = Metrics()
     monkeypatch.setattr(metrics_module, "METRICS", fresh)
     return fresh
@@ -53,6 +51,19 @@ def metrics(monkeypatch: pytest.MonkeyPatch) -> Metrics:
 def endpoint() -> Iterator[str]:
     port = free_port()
     server = serve("127.0.0.1", port)
+    assert server is not None, f"could not bind 127.0.0.1:{port}"
+
+    try:
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@pytest.fixture(scope="session")
+def preview_endpoint() -> Iterator[str]:
+    port = free_port()
+    server = serve("127.0.0.1", port, PREVIEW_ROUTES)
     assert server is not None, f"could not bind 127.0.0.1:{port}"
 
     try:
@@ -190,6 +201,24 @@ def test_a_tick_advances_the_heartbeat_without_a_render() -> None:
     assert "eink_last_render_timestamp_seconds 0.000" in text
 
 
+def test_the_preview_listener_refuses_metrics(
+    preview_endpoint: str, metrics: Metrics
+) -> None:
+    status, _, _ = get(f"{preview_endpoint}/metrics")
+    assert status == 404
+
+
+def test_the_preview_listener_serves_the_picture(
+    preview_endpoint: str, metrics: Metrics
+) -> None:
+    metrics.record_frame(Image.new("1", (296, 128), 255))
+
+    status, content_type, body = get(f"{preview_endpoint}/preview.png")
+    assert status == 200
+    assert content_type == PREVIEW_CONTENT_TYPE
+    assert body[:8] == b"\x89PNG\r\n\x1a\n"
+
+
 def test_unknown_routes_are_404(endpoint: str) -> None:
     status, _, _ = get(f"{endpoint}/nope")
     assert status == 404
@@ -200,5 +229,15 @@ def test_a_query_string_is_ignored(endpoint: str, metrics: Metrics) -> None:
     assert status == 200
 
 
-def test_port_zero_disables_the_endpoint() -> None:
-    assert serve("127.0.0.1", 0) is None
+@pytest.mark.parametrize(
+    ("description", "address", "port"),
+    [
+        ("port 0", "127.0.0.1", 0),
+        ("no address", "", 9110),
+        ("neither", "", 0),
+    ],
+)
+def test_an_incomplete_endpoint_is_disabled(
+    description: str, address: str, port: int
+) -> None:
+    assert serve(address, port) is None, description

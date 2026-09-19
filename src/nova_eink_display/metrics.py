@@ -2,13 +2,17 @@ import io
 import logging
 import threading
 import time
+from collections.abc import Iterable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
 CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 PREVIEW_CONTENT_TYPE = "image/png"
+
+METRICS_ROUTES = ("/metrics", "/preview.png")
+PREVIEW_ROUTES = ("/preview.png",)
 
 
 def _count(value: object) -> int:
@@ -181,23 +185,30 @@ class Metrics:
 METRICS = Metrics()
 
 
+class _Server(ThreadingHTTPServer):
+    def __init__(self, address: tuple[str, int], routes: Iterable[str]) -> None:
+        self.allowed_routes = frozenset(routes)
+        super().__init__(address, _Handler)
+
+
 class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         route = self.path.split("?")[0]
+
+        if route not in cast(_Server, self.server).allowed_routes:
+            self.send_error(404)
+            return
 
         if route == "/metrics":
             self._send(200, CONTENT_TYPE, METRICS.render().encode())
             return
 
-        if route == "/preview.png":
-            body = METRICS.preview()
-            if body is None:
-                self.send_error(503, "No frame rendered yet")
-                return
-            self._send(200, PREVIEW_CONTENT_TYPE, body)
+        body = METRICS.preview()
+        if body is None:
+            self.send_error(503, "No frame rendered yet")
             return
 
-        self.send_error(404)
+        self._send(200, PREVIEW_CONTENT_TYPE, body)
 
     def _send(self, status: int, content_type: str, body: bytes) -> None:
         self.send_response(status)
@@ -211,21 +222,21 @@ class _Handler(BaseHTTPRequestHandler):
         logger.debug("metrics: " + format, *args)
 
 
-def serve(address: str, port: int) -> ThreadingHTTPServer | None:
-    if not port:
-        logger.info("Metrics endpoint disabled")
+def serve(
+    address: str, port: int, routes: Iterable[str] = METRICS_ROUTES
+) -> _Server | None:
+    served = ", ".join(sorted(routes))
+
+    if not address or not port:
+        logger.info("Endpoint for %s is disabled", served)
         return None
 
     try:
-        server = ThreadingHTTPServer((address, port), _Handler)
+        server = _Server((address, port), routes)
     except OSError:
-        logger.exception("Could not bind metrics endpoint on %s:%d", address, port)
+        logger.exception("Could not bind %s on %s:%d", served, address, port)
         return None
 
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    logger.info(
-        "Metrics endpoint on http://%s:%d/metrics (preview at /preview.png)",
-        address,
-        server.server_port,
-    )
+    logger.info("Serving %s on http://%s:%d", served, address, server.server_port)
     return server

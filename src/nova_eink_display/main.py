@@ -16,6 +16,8 @@ from nova_eink_display.config import (
     METRICS_PORT,
     NIGHT_END_HOUR,
     NIGHT_START_HOUR,
+    PREVIEW_ADDRESS,
+    PREVIEW_PORT,
     PROMETHEUS_API_PASSWORD,
     PROMETHEUS_API_USERNAME,
     PROMETHEUS_CONNECT_TIMEOUT,
@@ -27,7 +29,7 @@ from nova_eink_display.config import (
     TIMEZONE,
 )
 from nova_eink_display.display import EPDDisplay, SimulatedDisplay
-from nova_eink_display.metrics import METRICS, serve
+from nova_eink_display.metrics import METRICS, PREVIEW_ROUTES, serve
 from nova_eink_display.prometheus import PrometheusClient
 from nova_eink_display.renderer import UIRenderer
 from nova_eink_display.state import WearState, state_path
@@ -223,6 +225,7 @@ def main():
     signal.signal(signal.SIGINT, dashboard.request_stop)
 
     serve(METRICS_ADDRESS, METRICS_PORT)
+    serve(PREVIEW_ADDRESS, PREVIEW_PORT, PREVIEW_ROUTES)
 
     display.init()
     wear.save(METRICS.snapshot())
