@@ -11,6 +11,13 @@ CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8"
 PREVIEW_CONTENT_TYPE = "image/png"
 
 
+def _count(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        return 0
+
+    return value
+
+
 def _escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
@@ -22,6 +29,8 @@ class Metrics:
         self.refresh_total: dict[str, int] = {"full": 0, "partial": 0}
         self.fetch_errors_total: dict[str, int] = {}
         self.tick_failures_total = 0
+        self.starts_total = 0
+        self.wear_persisted = 0
 
         self.partials_since_full = 0
         self.panel_asleep = 0
@@ -32,6 +41,26 @@ class Metrics:
         self.mood = "unknown"
         self.moods_seen: set[str] = set()
         self.frame: Any = None
+
+    def restore(self, refresh_total: object, starts_total: object) -> None:
+        with self._lock:
+            if isinstance(refresh_total, dict):
+                for kind in self.refresh_total:
+                    self.refresh_total[kind] = _count(refresh_total.get(kind))
+
+            self.starts_total = _count(starts_total)
+
+    def record_start(self, persisted: bool) -> None:
+        with self._lock:
+            self.starts_total += 1
+            self.wear_persisted = int(persisted)
+
+    def snapshot(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "refresh_total": dict(self.refresh_total),
+                "starts_total": self.starts_total,
+            }
 
     def record_refresh(self, kind: str, partials_since_full: int) -> None:
         with self._lock:
@@ -105,6 +134,12 @@ class Metrics:
                 "# HELP eink_tick_failures_total Ticks that raised.",
                 "# TYPE eink_tick_failures_total counter",
                 f"eink_tick_failures_total {self.tick_failures_total}",
+                "# HELP eink_starts_total Process starts. Each one costs the panel a full refresh.",
+                "# TYPE eink_starts_total counter",
+                f"eink_starts_total {self.starts_total}",
+                "# HELP eink_wear_persisted 1 when the counters survive a restart, 0 when they reset.",
+                "# TYPE eink_wear_persisted gauge",
+                f"eink_wear_persisted {self.wear_persisted}",
                 "# HELP eink_character_mood 1 for the reaction on screen, 0 for every other one seen.",
                 "# TYPE eink_character_mood gauge",
             ]

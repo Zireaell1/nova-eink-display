@@ -23,12 +23,14 @@ from nova_eink_display.config import (
     PROMETHEUS_URL,
     QUERIES,
     SIMULATE_MODE,
+    STATE_DIRECTORY,
     TIMEZONE,
 )
 from nova_eink_display.display import EPDDisplay, SimulatedDisplay
 from nova_eink_display.metrics import METRICS, serve
 from nova_eink_display.prometheus import PrometheusClient
 from nova_eink_display.renderer import UIRenderer
+from nova_eink_display.state import WearState, state_path
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +59,12 @@ def is_night(now):
 
 
 class Dashboard:
-    def __init__(self, display, ui, client, tz):
+    def __init__(self, display, ui, client, tz, wear):
         self.display = display
         self.ui = ui
         self.client = client
         self.tz = tz
+        self.wear = wear
 
         self.stopping = threading.Event()
         self.previous_alerts = None
@@ -79,6 +82,7 @@ class Dashboard:
         kind = "partial" if self.display.partial_count > before else "full"
         METRICS.record_refresh(kind, self.display.partial_count)
         METRICS.record_frame(frame)
+        self.wear.save(METRICS.snapshot())
 
     def tick(self, now):
         started = time.monotonic()
@@ -190,6 +194,11 @@ def main():
 
     display = build_display()
 
+    wear = WearState(state_path(STATE_DIRECTORY))
+    saved = wear.load()
+    METRICS.restore(saved.get("refresh_total"), saved.get("starts_total"))
+    METRICS.record_start(wear.writable)
+
     w, h = display.dimensions
     dashboard = Dashboard(
         display,
@@ -202,6 +211,7 @@ def main():
             timeout=(PROMETHEUS_CONNECT_TIMEOUT, PROMETHEUS_READ_TIMEOUT),
         ),
         ZoneInfo(TIMEZONE),
+        wear,
     )
 
     signal.signal(signal.SIGTERM, dashboard.request_stop)
@@ -210,6 +220,7 @@ def main():
     serve(METRICS_ADDRESS, METRICS_PORT)
 
     display.init()
+    wear.save(METRICS.snapshot())
 
     try:
         dashboard.run()

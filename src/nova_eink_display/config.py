@@ -23,6 +23,8 @@ BLINK_SECONDS = float(os.getenv("BLINK_SECONDS", "1"))
 NIGHT_START_HOUR = int(os.getenv("NIGHT_START_HOUR", "23"))
 NIGHT_END_HOUR = int(os.getenv("NIGHT_END_HOUR", "6"))
 
+STATE_DIRECTORY = os.getenv("STATE_DIRECTORY", "")
+
 METRICS_ADDRESS = os.getenv("METRICS_ADDRESS", "127.0.0.1")
 METRICS_PORT = int(os.getenv("METRICS_PORT", "9110"))
 

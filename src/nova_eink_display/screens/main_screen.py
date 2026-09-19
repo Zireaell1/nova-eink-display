@@ -17,8 +17,8 @@ class MainScreen(BaseScreen):
 
         if days > 0:
             return f"{days}d {hours}h"
-        else:
-            return f"{hours}h"
+
+        return f"{hours}h"
 
     @staticmethod
     def _dotted_rectangle(
