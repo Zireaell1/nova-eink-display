@@ -26,6 +26,8 @@ FAMILIES = [
     "eink_tick_failures_total",
     "eink_starts_total",
     "eink_wear_persisted",
+    "eink_simulated",
+    "eink_display_fallback",
     "eink_character_mood",
 ]
 
@@ -143,6 +145,37 @@ def test_preview_serves_the_last_frame(endpoint: str, metrics: Metrics) -> None:
 
     with Image.open(io.BytesIO(body)) as image:
         assert image.size == (296, 128)
+
+
+@pytest.mark.parametrize(
+    ("description", "simulated", "fallback", "expected"),
+    [
+        ("real panel", False, False, ("eink_simulated 0", "eink_display_fallback 0")),
+        ("SIMULATE=true", True, False, ("eink_simulated 1", "eink_display_fallback 0")),
+        (
+            "hardware failed",
+            True,
+            True,
+            ("eink_simulated 1", "eink_display_fallback 1"),
+        ),
+    ],
+)
+def test_display_mode_is_exported(
+    description: str, simulated: bool, fallback: bool, expected: tuple[str, str]
+) -> None:
+    fresh = Metrics()
+    fresh.record_display(simulated=simulated, fallback=fallback)
+
+    text = fresh.render()
+    for sample in expected:
+        assert sample in text, description
+
+
+def test_display_mode_defaults_to_real_hardware() -> None:
+    text = Metrics().render()
+
+    assert "eink_simulated 0" in text
+    assert "eink_display_fallback 0" in text
 
 
 def test_unknown_routes_are_404(endpoint: str) -> None:

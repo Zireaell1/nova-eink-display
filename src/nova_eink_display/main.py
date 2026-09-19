@@ -194,6 +194,11 @@ def main():
 
     display = build_display()
 
+    simulated = isinstance(display, SimulatedDisplay)
+    METRICS.record_display(
+        simulated=simulated, fallback=simulated and not SIMULATE_MODE
+    )
+
     wear = WearState(state_path(STATE_DIRECTORY))
     saved = wear.load()
     METRICS.restore(saved.get("refresh_total"), saved.get("starts_total"))

@@ -31,6 +31,8 @@ class Metrics:
         self.tick_failures_total = 0
         self.starts_total = 0
         self.wear_persisted = 0
+        self.simulated = 0
+        self.display_fallback = 0
 
         self.partials_since_full = 0
         self.panel_asleep = 0
@@ -49,6 +51,11 @@ class Metrics:
                     self.refresh_total[kind] = _count(refresh_total.get(kind))
 
             self.starts_total = _count(starts_total)
+
+    def record_display(self, simulated: bool, fallback: bool) -> None:
+        with self._lock:
+            self.simulated = int(simulated)
+            self.display_fallback = int(fallback)
 
     def record_start(self, persisted: bool) -> None:
         with self._lock:
@@ -140,6 +147,12 @@ class Metrics:
                 "# HELP eink_wear_persisted 1 when the counters survive a restart, 0 when they reset.",
                 "# TYPE eink_wear_persisted gauge",
                 f"eink_wear_persisted {self.wear_persisted}",
+                "# HELP eink_simulated 1 when frames go to a PNG instead of the panel.",
+                "# TYPE eink_simulated gauge",
+                f"eink_simulated {self.simulated}",
+                "# HELP eink_display_fallback 1 when simulation was not asked for: the hardware failed.",
+                "# TYPE eink_display_fallback gauge",
+                f"eink_display_fallback {self.display_fallback}",
                 "# HELP eink_character_mood 1 for the reaction on screen, 0 for every other one seen.",
                 "# TYPE eink_character_mood gauge",
             ]
