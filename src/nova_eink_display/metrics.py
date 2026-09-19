@@ -40,6 +40,7 @@ class Metrics:
         self.metrics_missing = 0
         self.fetch_duration_seconds = 0.0
         self.last_render_timestamp = 0.0
+        self.last_tick_timestamp = 0.0
         self.mood = "unknown"
         self.moods_seen: set[str] = set()
         self.frame: Any = None
@@ -86,6 +87,7 @@ class Metrics:
 
     def record_tick(self, alerts: int, mood: str, asleep: bool) -> None:
         with self._lock:
+            self.last_tick_timestamp = time.time()
             self.alerts_active = alerts
             self.mood = mood
             self.moods_seen.add(mood)
@@ -138,6 +140,9 @@ class Metrics:
                 "# HELP eink_last_render_timestamp_seconds When the panel was last written.",
                 "# TYPE eink_last_render_timestamp_seconds gauge",
                 f"eink_last_render_timestamp_seconds {self.last_render_timestamp:.3f}",
+                "# HELP eink_last_tick_timestamp_seconds When the fetch loop last finished a tick, asleep or not.",
+                "# TYPE eink_last_tick_timestamp_seconds gauge",
+                f"eink_last_tick_timestamp_seconds {self.last_tick_timestamp:.3f}",
                 "# HELP eink_tick_failures_total Ticks that raised.",
                 "# TYPE eink_tick_failures_total counter",
                 f"eink_tick_failures_total {self.tick_failures_total}",

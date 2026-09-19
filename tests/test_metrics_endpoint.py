@@ -23,6 +23,7 @@ FAMILIES = [
     "eink_metrics_missing",
     "eink_fetch_duration_seconds",
     "eink_last_render_timestamp_seconds",
+    "eink_last_tick_timestamp_seconds",
     "eink_tick_failures_total",
     "eink_starts_total",
     "eink_wear_persisted",
@@ -176,6 +177,17 @@ def test_display_mode_defaults_to_real_hardware() -> None:
 
     assert "eink_simulated 0" in text
     assert "eink_display_fallback 0" in text
+
+
+def test_a_tick_advances_the_heartbeat_without_a_render() -> None:
+    fresh = Metrics()
+    assert "eink_last_tick_timestamp_seconds 0.000" in fresh.render()
+
+    fresh.record_tick(0, "sleep", asleep=True)
+    text = fresh.render()
+
+    assert "eink_last_tick_timestamp_seconds 0.000" not in text
+    assert "eink_last_render_timestamp_seconds 0.000" in text
 
 
 def test_unknown_routes_are_404(endpoint: str) -> None:
