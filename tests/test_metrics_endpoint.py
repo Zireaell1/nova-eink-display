@@ -1,23 +1,33 @@
 import io
 import socket
-import sys
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 
+import pytest
 from PIL import Image
 
-from nova_eink_display.metrics import CONTENT_TYPE, METRICS, PREVIEW_CONTENT_TYPE, serve
+import nova_eink_display.metrics as metrics_module
+from nova_eink_display.metrics import (
+    CONTENT_TYPE,
+    PREVIEW_CONTENT_TYPE,
+    Metrics,
+    serve,
+)
 
-FAILURES: list[str] = []
-
-
-def check(condition: object, description: str) -> None:
-    if condition:
-        print(f"ok   {description}")
-        return
-
-    print(f"FAIL {description}")
-    FAILURES.append(description)
+FAMILIES = [
+    "eink_refresh_total",
+    "eink_partials_since_full",
+    "eink_panel_asleep",
+    "eink_alerts_active",
+    "eink_metrics_missing",
+    "eink_fetch_duration_seconds",
+    "eink_last_render_timestamp_seconds",
+    "eink_tick_failures_total",
+    "eink_starts_total",
+    "eink_wear_persisted",
+    "eink_character_mood",
+]
 
 
 def free_port() -> int:
@@ -26,137 +36,124 @@ def free_port() -> int:
         return probe.getsockname()[1]
 
 
-def get(url: str) -> tuple[int, str, bytes]:
-    try:
-        with urllib.request.urlopen(url, timeout=5) as response:
-            content_type = response.headers.get("Content-Type", "")
-            return response.status, content_type, response.read()
-    except urllib.error.HTTPError as error:
-        content_type = error.headers.get("Content-Type", "")
-        return error.code, content_type, error.read()
+@pytest.fixture
+def metrics(monkeypatch: pytest.MonkeyPatch) -> Metrics:
+    """A fresh Metrics in place of the module global, so tests cannot leak
+    counters into each other. _Handler reads the global per request, so the
+    running server picks this up too."""
+    fresh = Metrics()
+    monkeypatch.setattr(metrics_module, "METRICS", fresh)
+    return fresh
 
 
-def main() -> int:
-    check(serve("127.0.0.1", 0) is None, "port 0 disables the endpoint")
-
+@pytest.fixture(scope="session")
+def endpoint() -> Iterator[str]:
     port = free_port()
     server = serve("127.0.0.1", port)
-    if server is None:
-        print(f"FAIL could not bind 127.0.0.1:{port}")
-        return 1
-
-    base = f"http://127.0.0.1:{port}"
+    assert server is not None, f"could not bind 127.0.0.1:{port}"
 
     try:
-        status, content_type, body = get(f"{base}/preview.png")
-        check(
-            status == 503, f"/preview.png is 503 before the first render (got {status})"
-        )
-
-        METRICS.record_refresh("full", 0)
-        METRICS.record_refresh("partial", 1)
-        METRICS.record_fetch(0.25, None, 0)
-        METRICS.record_fetch(0.25, "timeout", 1)
-        METRICS.record_tick(2, "happy", False)
-        METRICS.record_tick(2, "sleep", True)
-        METRICS.record_failure()
-        METRICS.record_frame(Image.new("1", (296, 128), 255))
-
-        status, content_type, body = get(f"{base}/metrics")
-        text = body.decode()
-        check(status == 200, f"/metrics is 200 (got {status})")
-        check(
-            content_type == CONTENT_TYPE,
-            f"/metrics content type (got {content_type!r})",
-        )
-        check(text.endswith("\n"), "/metrics body ends with a newline")
-
-        for name in (
-            "eink_refresh_total",
-            "eink_partials_since_full",
-            "eink_panel_asleep",
-            "eink_alerts_active",
-            "eink_metrics_missing",
-            "eink_fetch_duration_seconds",
-            "eink_last_render_timestamp_seconds",
-            "eink_tick_failures_total",
-            "eink_character_mood",
-            "eink_fetch_errors_total",
-        ):
-            check(f"# TYPE {name} " in text, f"/metrics declares a TYPE for {name}")
-
-        check('eink_refresh_total{kind="full"} 1' in text, "full refreshes counted")
-        check(
-            'eink_refresh_total{kind="partial"} 1' in text, "partial refreshes counted"
-        )
-        check(
-            'eink_character_mood{mood="sleep"} 1' in text,
-            "the mood on screen is exported as 1",
-        )
-        check(
-            'eink_character_mood{mood="happy"} 0' in text,
-            "every previously seen mood keeps a series at 0",
-        )
-        check(
-            'eink_character_mood{mood="unknown"}' not in text,
-            "the pre-first-tick placeholder drops out once a real mood arrives",
-        )
-        check("eink_panel_asleep 1" in text, "panel_asleep follows the last tick")
-        check(
-            'eink_fetch_errors_total{reason="timeout"} 1' in text,
-            "fetch errors are labelled",
-        )
-        check("eink_tick_failures_total 1" in text, "tick failures counted")
-
-        samples = [
-            line for line in text.splitlines() if line and not line.startswith("#")
-        ]
-        check(
-            all(len(line.rsplit(" ", 1)) == 2 for line in samples),
-            "every sample line carries a value",
-        )
-        check(
-            all(_is_number(line.rsplit(" ", 1)[1]) for line in samples),
-            "every sample value parses as a float",
-        )
-
-        status, content_type, body = get(f"{base}/preview.png")
-        check(status == 200, f"/preview.png is 200 after a render (got {status})")
-        check(
-            content_type == PREVIEW_CONTENT_TYPE,
-            f"preview content type (got {content_type!r})",
-        )
-        check(body[:8] == b"\x89PNG\r\n\x1a\n", "preview body is a PNG")
-
-        with Image.open(io.BytesIO(body)) as image:
-            check(
-                image.size == (296, 128), f"preview is panel sized (got {image.size})"
-            )
-
-        status, _, _ = get(f"{base}/nope")
-        check(status == 404, f"unknown routes are 404 (got {status})")
-
-        status, _, _ = get(f"{base}/metrics?collect=all")
-        check(status == 200, f"/metrics ignores a query string (got {status})")
+        yield f"http://127.0.0.1:{port}"
     finally:
         server.shutdown()
         server.server_close()
 
-    if FAILURES:
-        print(f"\n{len(FAILURES)} check(s) failed")
-        return 1
 
-    print("\nall checks passed")
-    return 0
-
-
-def _is_number(value: str) -> bool:
+def get(url: str) -> tuple[int, str, bytes]:
     try:
+        with urllib.request.urlopen(url, timeout=5) as response:
+            return (
+                response.status,
+                response.headers.get("Content-Type", ""),
+                response.read(),
+            )
+    except urllib.error.HTTPError as error:
+        return error.code, error.headers.get("Content-Type", ""), error.read()
+
+
+@pytest.fixture
+def scraped(endpoint: str, metrics: Metrics) -> str:
+    metrics.record_refresh("full", 0)
+    metrics.record_refresh("partial", 1)
+    metrics.record_fetch(0.25, None, 0)
+    metrics.record_fetch(0.25, "timeout", 1)
+    metrics.record_tick(2, "happy", asleep=False)
+    metrics.record_tick(2, "sleep", asleep=True)
+    metrics.record_failure()
+
+    status, content_type, body = get(f"{endpoint}/metrics")
+    assert status == 200
+    assert content_type == CONTENT_TYPE
+    return body.decode()
+
+
+def test_body_is_newline_terminated(scraped: str) -> None:
+    assert scraped.endswith("\n")
+
+
+@pytest.mark.parametrize("family", FAMILIES)
+def test_every_family_declares_a_type(scraped: str, family: str) -> None:
+    assert f"# TYPE {family} " in scraped
+
+
+@pytest.mark.parametrize(
+    "sample",
+    [
+        'eink_refresh_total{kind="full"} 1',
+        'eink_refresh_total{kind="partial"} 1',
+        'eink_fetch_errors_total{reason="timeout"} 1',
+        "eink_tick_failures_total 1",
+        "eink_panel_asleep 1",
+    ],
+)
+def test_expected_samples_are_present(scraped: str, sample: str) -> None:
+    assert sample in scraped
+
+
+def test_mood_is_an_enum_gauge(scraped: str) -> None:
+    assert 'eink_character_mood{mood="sleep"} 1' in scraped
+    assert 'eink_character_mood{mood="happy"} 0' in scraped
+    assert 'eink_character_mood{mood="unknown"}' not in scraped
+
+
+def test_every_sample_parses(scraped: str) -> None:
+    for line in scraped.splitlines():
+        if not line or line.startswith("#"):
+            continue
+
+        name, _, value = line.rpartition(" ")
+        assert name, line
         float(value)
-    except ValueError:
-        return False
-    return True
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+def test_preview_is_unavailable_before_the_first_render(
+    endpoint: str, metrics: Metrics
+) -> None:
+    status, _, _ = get(f"{endpoint}/preview.png")
+    assert status == 503
+
+
+def test_preview_serves_the_last_frame(endpoint: str, metrics: Metrics) -> None:
+    metrics.record_frame(Image.new("1", (296, 128), 255))
+
+    status, content_type, body = get(f"{endpoint}/preview.png")
+    assert status == 200
+    assert content_type == PREVIEW_CONTENT_TYPE
+    assert body[:8] == b"\x89PNG\r\n\x1a\n"
+
+    with Image.open(io.BytesIO(body)) as image:
+        assert image.size == (296, 128)
+
+
+def test_unknown_routes_are_404(endpoint: str) -> None:
+    status, _, _ = get(f"{endpoint}/nope")
+    assert status == 404
+
+
+def test_a_query_string_is_ignored(endpoint: str, metrics: Metrics) -> None:
+    status, _, _ = get(f"{endpoint}/metrics?collect=all")
+    assert status == 200
+
+
+def test_port_zero_disables_the_endpoint() -> None:
+    assert serve("127.0.0.1", 0) is None

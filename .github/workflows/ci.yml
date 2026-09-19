@@ -29,6 +29,27 @@ jobs:
       - name: Run Ruff Formatter
         run: ruff format --check .
 
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    env:
+      UV_LOCKED: "1"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run pytest
+        run: uv run pytest
+
   verify:
     name: Verify
     runs-on: ubuntu-24.04
@@ -64,9 +85,6 @@ jobs:
               importlib.import_module(m.name)
               print("ok", m.name)
           PY
-
-      - name: Check the metrics endpoint
-        run: uv run python tests/test_metrics_endpoint.py
 
       - name: Render every dashboard state
         run: |

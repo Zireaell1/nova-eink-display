@@ -29,8 +29,13 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "pytest==9.1.1",
     "ruff==0.16.2",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "-ra"]
+
 [tool.ruff.lint]
-extend-select = ["I"]
+extend-select = ["I", "SIM", "B", "UP", "C4", "RET"]
