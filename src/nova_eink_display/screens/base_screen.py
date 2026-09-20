@@ -40,9 +40,11 @@ class BaseScreen:
         title: str = "root@nova:~#",
         invert: bool = False,
         now: datetime.datetime | None = None,
+        clock: str | None = None,
     ) -> None:
-        now = now or datetime.datetime.now(ZoneInfo(TIMEZONE))
-        clock = now.strftime("%H:%M")
+        if clock is None:
+            now = now or datetime.datetime.now(ZoneInfo(TIMEZONE))
+            clock = now.strftime("%H:%M")
 
         layout = self.layout
         bg_color = 255 if invert else 0

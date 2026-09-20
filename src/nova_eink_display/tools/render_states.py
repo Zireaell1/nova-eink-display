@@ -64,8 +64,12 @@ STATES = [
 
 
 def extra_frames(invert=False):
+    ui = UIRenderer(296, 128)
     return {
-        "offline": UIRenderer(296, 128).render_offline_frame(DAY, invert=invert),
+        "asleep": ui.render_sleep_frame(
+            DAY.replace(hour=23, minute=4), 6, invert=invert
+        ),
+        "offline": ui.render_offline_frame(DAY, invert=invert),
     }
 
 

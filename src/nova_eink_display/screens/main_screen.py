@@ -134,6 +134,18 @@ class MainScreen(BaseScreen):
             draw.text((layout.margin, y_offset), line, font=theme.mono, fill=0)
             y_offset += layout.line_height
 
+    def draw_asleep(
+        self, draw: ImageDraw.ImageDraw, now: datetime.datetime, wake_hour: int
+    ) -> None:
+        self.draw_header(draw, clock="--:--")
+        self.draw_footer(draw, None, "--")
+
+        self._draw_wrapped(
+            draw,
+            ["ASLEEP", f"SINCE {now.strftime('%H:%M')}", f"UNTIL {wake_hour:02d}:00"],
+            self.layout.panel_top,
+        )
+
     def draw_offline(self, draw: ImageDraw.ImageDraw, now: datetime.datetime) -> None:
         self.draw_header(draw, now=now)
         self.draw_footer(draw, None, "--")

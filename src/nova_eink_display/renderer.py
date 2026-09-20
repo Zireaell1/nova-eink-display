@@ -104,6 +104,16 @@ class UIRenderer:
 
         return self._finish(image, invert)
 
+    def render_sleep_frame(
+        self, now: datetime.datetime, wake_hour: int, invert: bool | None = None
+    ) -> Image.Image:
+        image, draw = self._new_frame()
+
+        self._draw_character(image, draw, {}, None, [], False, now)
+        self.main_screen.draw_asleep(draw, now, wake_hour)
+
+        return self._finish(image, invert)
+
     def render_offline_frame(
         self, now: datetime.datetime, invert: bool | None = None
     ) -> Image.Image:

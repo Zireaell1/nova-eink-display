@@ -107,6 +107,16 @@ class Dashboard:
             if night and self.sleeping:
                 return None, None
 
+            if night:
+                frame = self.ui.render_sleep_frame(now, NIGHT_END_HOUR)
+                self.render(frame, full_refresh=True)
+                self.previous_alerts = alerts
+
+                self.display.sleep()
+                self.sleeping = True
+                logger.info("Night mode: panel asleep until %02d:00", NIGHT_END_HOUR)
+                return frame, None
+
             frame = self.ui.render_frame(data, alerts, now=now)
 
             alerts_changed = alerts != self.previous_alerts
@@ -114,12 +124,6 @@ class Dashboard:
 
             self.render(frame, full_refresh=alerts_changed or ghosted)
             self.previous_alerts = alerts
-
-            if night:
-                self.display.sleep()
-                self.sleeping = True
-                logger.info("Night mode: panel asleep until %02d:00", NIGHT_END_HOUR)
-                return frame, None
 
             self.sleeping = False
 
