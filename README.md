@@ -32,23 +32,54 @@ Honestly, a Pi 5 is absolute overkill for this script. I just used it because it
 
 The screen and Pi are mounted in my server rack using a custom 3D-printed case, printed in [Fiberlogy PETG CF](https://fiberlogy.com/en/PETGCF-Filament-1_75mm-0_85kg). Part of the case design was adapted from an existing model (see Credits).
 
+### Wiring & Pinout
+If you are wiring the screen manually, refer to the official pinout guides:
+* [Waveshare 2.9" e-Paper Module Raspberry Pi Connection Guide](https://www.waveshare.com/wiki/2.9inch_e-Paper_Module_Manual#Working_With_Raspberry_Pi)
+* [Raspberry Pi 5 GPIO Pinout Documentation](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#gpio)
+
 ## Installation / Development Setup
 
 *Note: A standalone executable is still a work in progress. For now, you can run it from the source code.*
 
 ### Prerequisites
-* [uv](https://docs.astral.sh/uv/) installed on your machine.
 
-### Setup and Run
-1. Clone the repository and open a terminal in the cloned directory.
-2. Copy the `.env.example` file and rename it to `.env`. 
-3. Fill in your specific values in the `.env` file based on the provided descriptions.
-4. Sync the dependencies and run the script:
+1. **Package Manager:**
+   * [uv](https://docs.astral.sh/uv/) installed on your system.
 
+2. **Raspberry Pi OS Configuration (if running on hardware):**
+   * **Enable SPI:** Run `sudo raspi-config` → **Interface Options** → **SPI** → **Yes**, then reboot.
+   * **System Dependencies:** Install the required native libraries and build headers:
+     ```bash
+     sudo apt update && sudo apt install -y swig liblgpio-dev python3-dev python3-packaging
+     ```
+   *(Note: You can run and test this on your local machine without a screen or SPI by setting `SIMULATE=true` in your `.env` file).*
+
+### Manual Setup & Run
+
+1. Clone the repository and navigate into the folder:
+```bash
+git clone https://github.com/Zireaell1/nova-eink-display.git
+cd nova-eink-display
+```
+
+2. Set up your environment file:
+```bash
+cp .env.example .env
+# Edit .env with your specific settings (Prometheus URL, intervals, etc.)
+```
+
+3. Install dependencies and run the script:
 ```bash
 uv sync
 uv run nova-eink-display
 ```
+
+### Automation via Ansible
+
+If you manage your homelab via Ansible, you can automate the system setup and run the display as a background `systemd` service using these roles from [nova-homelab](https://github.com/Zireaell1/nova-homelab):
+
+* [`rpi_base`](https://github.com/Zireaell1/nova-homelab/tree/main/ansible/roles/rpi_base) – Configures base packages and enables the hardware SPI interface.
+* [`eink_display`](https://github.com/Zireaell1/nova-homelab/tree/main/ansible/roles/eink_display) – Installs, configures, and manages the e-ink display service.
 
 ## Tests
 
