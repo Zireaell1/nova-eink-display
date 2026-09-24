@@ -15,7 +15,7 @@ permissions:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -52,7 +52,7 @@ jobs:
 
   verify:
     name: Verify
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     env:
       UV_LOCKED: "1"
       UV_NO_DEV: "1"
