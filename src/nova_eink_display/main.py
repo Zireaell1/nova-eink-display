@@ -140,10 +140,7 @@ class Dashboard:
             METRICS.record_tick(len(alerts), self.character_mood, self.display.asleep)
 
     def run(self):
-        next_tick = time.monotonic()
-
         while not self.stopping.is_set():
-            next_tick += FETCH_INTERVAL
             now = datetime.now(self.tz)
 
             try:
@@ -156,6 +153,10 @@ class Dashboard:
                 if self.failures >= MAX_CONSECUTIVE_FAILURES:
                     raise
                 frame, blink = None, None
+
+            next_tick = (
+                time.monotonic() + FETCH_INTERVAL - (time.time() % FETCH_INTERVAL)
+            )
 
             if blink is not None:
                 self.blink(frame, blink, next_tick)
