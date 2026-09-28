@@ -40,7 +40,7 @@ TIMEZONE = os.getenv("TIMEZONE", "Europe/Warsaw")
 QUERIES = {
     "cpu": f'avg(100 - (avg(rate(node_cpu_seconds_total{{mode="idle", instance="{INSTANCE}"}}[5m])) * 100))',
     "mem": f'avg((1 - (node_memory_MemAvailable_bytes{{instance="{INSTANCE}"}} / node_memory_MemTotal_bytes{{instance="{INSTANCE}"}})) * 100)',
-    "ups_charge": "min(ups_battery_charge)",
+    "ups_charge": "min(network_ups_tools_battery_charge)",
     "uptime": f'max(time() - node_boot_time_seconds{{instance="{INSTANCE}"}})',
     "backup_status": "min(homelab_backup_success)",
 }
