@@ -72,6 +72,7 @@ class Dashboard:
         self.previous_alerts = None
         self.sleeping = False
         self.failures = 0
+        self.error_since = None
 
     def request_stop(self, signum, frame):
         logger.info("Stop requested, finishing current tick...")
@@ -101,6 +102,9 @@ class Dashboard:
         if error:
             alerts.insert(0, f"API ERR: {error}")
 
+        self.error_since = (self.error_since or now) if error else None
+        data = {**data, "error_since": self.error_since}
+
         night = not alerts and is_night(now)
 
         try:
@@ -127,7 +131,8 @@ class Dashboard:
 
             self.sleeping = False
 
-            if alerts or random.random() >= BLINK_PROBABILITY:
+            budget_left = MAX_PARTIAL_REFRESHES - self.display.partial_count
+            if alerts or budget_left < 2 or random.random() >= BLINK_PROBABILITY:
                 return frame, None
 
             blink = self.ui.render_frame(data, alerts, is_blinking=True, now=now)
@@ -181,6 +186,7 @@ class Dashboard:
             return
 
         self.render(blink_frame)
+        METRICS.record_blink()
 
         if self.stopping.wait(BLINK_SECONDS):
             return
@@ -203,7 +209,9 @@ def main():
 
     simulated = isinstance(display, SimulatedDisplay)
     METRICS.record_display(
-        simulated=simulated, fallback=simulated and not SIMULATE_MODE
+        simulated=simulated,
+        fallback=simulated and not SIMULATE_MODE,
+        partials_limit=MAX_PARTIAL_REFRESHES,
     )
 
     wear = WearState(state_path(STATE_DIRECTORY))

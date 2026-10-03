@@ -33,12 +33,14 @@ class Metrics:
         self.refresh_total: dict[str, int] = {"full": 0, "partial": 0}
         self.fetch_errors_total: dict[str, int] = {}
         self.tick_failures_total = 0
+        self.blinks_total = 0
         self.starts_total = 0
         self.wear_persisted = 0
         self.simulated = 0
         self.display_fallback = 0
 
         self.partials_since_full = 0
+        self.partials_limit = 0
         self.panel_asleep = 0
         self.alerts_active = 0
         self.metrics_missing = 0
@@ -57,10 +59,13 @@ class Metrics:
 
             self.starts_total = _count(starts_total)
 
-    def record_display(self, simulated: bool, fallback: bool) -> None:
+    def record_display(
+        self, simulated: bool, fallback: bool, partials_limit: int
+    ) -> None:
         with self._lock:
             self.simulated = int(simulated)
             self.display_fallback = int(fallback)
+            self.partials_limit = partials_limit
 
     def record_start(self, persisted: bool) -> None:
         with self._lock:
@@ -97,6 +102,10 @@ class Metrics:
             self.moods_seen.add(mood)
             self.panel_asleep = int(asleep)
 
+    def record_blink(self) -> None:
+        with self._lock:
+            self.blinks_total += 1
+
     def record_failure(self) -> None:
         with self._lock:
             self.tick_failures_total += 1
@@ -129,6 +138,9 @@ class Metrics:
                 "# HELP eink_partials_since_full Partial refreshes since the last full one.",
                 "# TYPE eink_partials_since_full gauge",
                 f"eink_partials_since_full {self.partials_since_full}",
+                "# HELP eink_partials_limit Partials allowed before a full refresh is forced (MAX_PARTIAL_REFRESHES).",
+                "# TYPE eink_partials_limit gauge",
+                f"eink_partials_limit {self.partials_limit}",
                 "# HELP eink_panel_asleep 1 while the panel is in deep sleep.",
                 "# TYPE eink_panel_asleep gauge",
                 f"eink_panel_asleep {self.panel_asleep}",
@@ -162,6 +174,9 @@ class Metrics:
                 "# HELP eink_display_fallback 1 when simulation was not asked for: the hardware failed.",
                 "# TYPE eink_display_fallback gauge",
                 f"eink_display_fallback {self.display_fallback}",
+                "# HELP eink_blinks_total Blinks drawn by the character. Each one costs two partial refreshes, counted in eink_refresh_total.",
+                "# TYPE eink_blinks_total counter",
+                f"eink_blinks_total {self.blinks_total}",
                 "# HELP eink_character_mood 1 for the reaction on screen, 0 for every other one seen.",
                 "# TYPE eink_character_mood gauge",
             ]

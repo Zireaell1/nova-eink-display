@@ -19,6 +19,7 @@ from nova_eink_display.metrics import (
 FAMILIES = [
     "eink_refresh_total",
     "eink_partials_since_full",
+    "eink_partials_limit",
     "eink_panel_asleep",
     "eink_alerts_active",
     "eink_metrics_missing",
@@ -30,6 +31,7 @@ FAMILIES = [
     "eink_wear_persisted",
     "eink_simulated",
     "eink_display_fallback",
+    "eink_blinks_total",
     "eink_character_mood",
 ]
 
@@ -89,6 +91,8 @@ def get(url: str) -> tuple[int, str, bytes]:
 def scraped(endpoint: str, metrics: Metrics) -> str:
     metrics.record_refresh("full", 0)
     metrics.record_refresh("partial", 1)
+    metrics.record_blink()
+    metrics.record_display(simulated=False, fallback=False, partials_limit=16)
     metrics.record_fetch(0.25, None, 0)
     metrics.record_fetch(0.25, "timeout", 1)
     metrics.record_tick(2, "happy", asleep=False)
@@ -115,6 +119,8 @@ def test_every_family_declares_a_type(scraped: str, family: str) -> None:
     [
         'eink_refresh_total{kind="full"} 1',
         'eink_refresh_total{kind="partial"} 1',
+        "eink_blinks_total 1",
+        "eink_partials_limit 16",
         'eink_fetch_errors_total{reason="timeout"} 1',
         "eink_tick_failures_total 1",
         "eink_panel_asleep 1",
@@ -176,7 +182,7 @@ def test_display_mode_is_exported(
     description: str, simulated: bool, fallback: bool, expected: tuple[str, str]
 ) -> None:
     fresh = Metrics()
-    fresh.record_display(simulated=simulated, fallback=fallback)
+    fresh.record_display(simulated=simulated, fallback=fallback, partials_limit=16)
 
     text = fresh.render()
     for sample in expected:
