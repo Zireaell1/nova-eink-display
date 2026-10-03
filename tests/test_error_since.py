@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from pathlib import Path
-from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -10,6 +9,7 @@ from nova_eink_display import main
 from nova_eink_display.display import SimulatedDisplay
 from nova_eink_display.screens.main_screen import MainScreen
 from nova_eink_display.state import WearState
+from nova_eink_display.world import World
 
 TZ = ZoneInfo("Europe/Warsaw")
 NOON = datetime(2026, 3, 17, 12, 0, tzinfo=TZ)
@@ -26,14 +26,12 @@ class Client:
         return {"stats": {"cpu": 10.0}, "error": None, "missing": []}
 
 
-class UI:
-    character = SimpleNamespace(last_mood="happy")
-
+class Compose:
     def __init__(self) -> None:
         self.seen: list[datetime | None] = []
 
-    def render_frame(self, data, alerts, is_blinking=False, now=None):
-        self.seen.append(data.get("error_since"))
+    def __call__(self, world: World) -> Image.Image:
+        self.seen.append(world.screen.error_since)
         return Image.new("1", (296, 128), 255)
 
 
@@ -41,7 +39,7 @@ class UI:
 def parts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main.random, "random", lambda: 1.0)
-    client, ui = Client(), UI()
+    client, ui = Client(), Compose()
     dashboard = main.Dashboard(SimulatedDisplay(), ui, client, TZ, WearState(None))
     return dashboard, client, ui
 

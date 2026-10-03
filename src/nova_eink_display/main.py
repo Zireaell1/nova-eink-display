@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from nova_eink_display.alerts import evaluate_alerts
+from nova_eink_display.compose import Composer
 from nova_eink_display.config import (
     BLINK_PROBABILITY,
     BLINK_SECONDS,
@@ -31,8 +31,8 @@ from nova_eink_display.config import (
 from nova_eink_display.display import EPDDisplay, SimulatedDisplay
 from nova_eink_display.metrics import METRICS, PREVIEW_ROUTES, serve
 from nova_eink_display.prometheus import PrometheusClient
-from nova_eink_display.renderer import UIRenderer
 from nova_eink_display.state import WearState, state_path
+from nova_eink_display.world import Screen, World
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +61,9 @@ def is_night(now):
 
 
 class Dashboard:
-    def __init__(self, display, ui, client, tz, wear):
+    def __init__(self, display, compose, client, tz, wear):
         self.display = display
-        self.ui = ui
+        self.compose = compose
         self.client = client
         self.tz = tz
         self.wear = wear
@@ -73,6 +73,7 @@ class Dashboard:
         self.sleeping = False
         self.failures = 0
         self.error_since = None
+        self.world = None
 
     def request_stop(self, signum, frame):
         logger.info("Stop requested, finishing current tick...")
@@ -96,14 +97,11 @@ class Dashboard:
             len(data.get("missing", [])),
         )
 
-        alerts = evaluate_alerts(data.get("stats", {}))
-
         error = data.get("error")
-        if error:
-            alerts.insert(0, f"API ERR: {error}")
-
         self.error_since = (self.error_since or now) if error else None
-        data = {**data, "error_since": self.error_since}
+
+        screen = Screen.dashboard(data, now, self.error_since)
+        alerts = screen.alerts
 
         night = not alerts and is_night(now)
 
@@ -112,7 +110,8 @@ class Dashboard:
                 return None, None
 
             if night:
-                frame = self.ui.render_sleep_frame(now, NIGHT_END_HOUR)
+                self.world = World(Screen.asleep(now, NIGHT_END_HOUR))
+                frame = self.compose(self.world)
                 self.render(frame, full_refresh=True)
                 self.previous_alerts = alerts
 
@@ -121,7 +120,8 @@ class Dashboard:
                 logger.info("Night mode: panel asleep until %02d:00", NIGHT_END_HOUR)
                 return frame, None
 
-            frame = self.ui.render_frame(data, alerts, now=now)
+            self.world = World(screen)
+            frame = self.compose(self.world)
 
             alerts_changed = alerts != self.previous_alerts
             ghosted = self.display.partial_count >= MAX_PARTIAL_REFRESHES
@@ -135,7 +135,7 @@ class Dashboard:
             if alerts or budget_left < 2 or random.random() >= BLINK_PROBABILITY:
                 return frame, None
 
-            blink = self.ui.render_frame(data, alerts, is_blinking=True, now=now)
+            blink = self.compose(World(screen.showing("blink")))
 
             if blink.tobytes() == frame.tobytes():
                 return frame, None
@@ -170,10 +170,11 @@ class Dashboard:
 
     @property
     def character_mood(self):
-        return self.ui.character.last_mood
+        return self.world.screen.pose if self.world else "unknown"
 
     def shutdown(self):
-        frame = self.ui.render_offline_frame(datetime.now(self.tz))
+        self.world = World(Screen.offline(datetime.now(self.tz)))
+        frame = self.compose(self.world)
         self.render(frame, full_refresh=True)
         self.display.sleep()
 
@@ -222,7 +223,7 @@ def main():
     w, h = display.dimensions
     dashboard = Dashboard(
         display,
-        UIRenderer(w, h),
+        Composer(w, h),
         PrometheusClient(
             PROMETHEUS_URL,
             QUERIES,

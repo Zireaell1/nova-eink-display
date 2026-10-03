@@ -1,93 +1,35 @@
-import logging
-import os
 import random
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
-from PIL import Image
-
-from nova_eink_display.config import IMAGES_DIR, TIMEZONE
-
-logger = logging.getLogger(__name__)
+IDLE_POOL = ("happy", "music", "smug")
 
 
-class Character:
-    def __init__(self):
-        self.default_char = "character-happy.png"
-        self.image_cache = {}
+def choose_pose(stats, sys_error, active_alerts, now) -> str:
+    if sys_error:
+        return "disconnected"
 
-        self.last_mood = "unknown"
+    if active_alerts:
+        return "concerned"  # TODO: panicked
 
-    def _determine_reaction(self, stats, sys_error, active_alerts, now=None):
-        if sys_error:
-            return "disconnected"
+    cpu = stats.get("cpu", 0)
+    mem = stats.get("mem", 0)
 
-        if active_alerts:
-            return "concerned"  # TODO: panicked
+    if cpu > 85 or mem > 90:
+        return "working"
 
-        cpu = stats.get("cpu", 0)
-        mem = stats.get("mem", 0)
+    if cpu > 75 or mem > 80:
+        return "concerned"
 
-        if cpu > 85 or mem > 90:
-            return "working"
+    if stats.get("uptime", 3600) < 300:
+        return "salute"
 
-        if cpu > 75 or mem > 80:
-            return "concerned"
+    hour = now.hour
 
-        if stats.get("uptime", 3600) < 300:
-            return "salute"
+    if hour >= 23 or hour < 6:
+        return "sleep"
 
-        now = now or datetime.now(ZoneInfo(TIMEZONE))
-        hour = now.hour
+    if 6 <= hour < 9:
+        return "coffee"
 
-        if hour >= 23 or hour < 6:
-            return "sleep"
-
-        if 6 <= hour < 9:
-            return "coffee"
-
-        minute_block = now.minute // 10
-        seed = f"{now.date()}_{hour}_{minute_block}"
-        mood_picker = random.Random(seed)
-
-        idle_pool = ["happy", "music", "smug"]
-        return mood_picker.choice(idle_pool)
-
-    def _get_image(self, reaction_state):
-        if reaction_state in self.image_cache:
-            return self.image_cache[reaction_state]
-
-        specific_path = os.path.join(IMAGES_DIR, f"character-{reaction_state}.png")
-        default_path = os.path.join(IMAGES_DIR, self.default_char)
-
-        path_to_load = specific_path if os.path.exists(specific_path) else default_path
-
-        if path_to_load and os.path.exists(path_to_load):
-            try:
-                with Image.open(path_to_load) as temp_img:
-                    img = temp_img.convert("1", dither=Image.Dither.NONE)
-                    self.image_cache[reaction_state] = img
-                    return img
-            except (OSError, ValueError) as e:
-                logger.warning(f"Could not load image at {path_to_load}. {e}")
-
-        self.image_cache[reaction_state] = None
-        return None
-
-    def get_current_image(
-        self, stats, sys_error, active_alerts, is_blinking=False, now=None
-    ):
-        mood = self._determine_reaction(stats, sys_error, active_alerts, now)
-        self.last_mood = mood
-
-        if not is_blinking:
-            logger.debug(f"Selected mood: {mood}")
-
-        if is_blinking and mood == "happy":
-            blink_mood = "happy-eyes-closed"
-
-            blink_img = self._get_image(blink_mood)
-            if blink_img:
-                return blink_img, mood
-
-        return self._get_image(mood), mood
+    minute_block = now.minute // 10
+    seed = f"{now.date()}_{hour}_{minute_block}"
+    return random.Random(seed).choice(IDLE_POOL)

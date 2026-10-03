@@ -6,9 +6,9 @@ from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageChops
 
-from nova_eink_display.alerts import evaluate_alerts
-from nova_eink_display.config import BASE_DIR, QUERIES
-from nova_eink_display.renderer import UIRenderer
+from nova_eink_display.compose import Composer
+from nova_eink_display.config import BASE_DIR
+from nova_eink_display.world import Screen, World
 
 DEFAULT_OUT = pathlib.Path(BASE_DIR) / "frames"
 
@@ -36,9 +36,7 @@ SECURITY = {"updates_pending": 14.0, "updates_security": 3.0}
 
 
 def state(name, stats, error=None, now=DAY, since=None):
-    missing = sorted(set(QUERIES) - set(stats))
-    data = {"stats": stats, "error": error, "missing": missing, "error_since": since}
-    return name, data, now
+    return name, Screen.dashboard({"stats": stats, "error": error}, now, since)
 
 
 OUTAGE = DAY.replace(hour=11, minute=42)
@@ -123,32 +121,27 @@ STATES = [
 ]
 
 
-def extra_frames(invert=False):
-    ui = UIRenderer(296, 128)
-    return {
-        "asleep": ui.render_sleep_frame(
-            DAY.replace(hour=23, minute=4), 6, invert=invert
-        ),
-        "offline": ui.render_offline_frame(DAY, invert=invert),
-    }
+EXTRA = [
+    ("asleep", Screen.asleep(DAY.replace(hour=23, minute=4), 6)),
+    ("offline", Screen.offline(DAY)),
+]
 
 
 def render(out_dir, blink=False, invert=False):
-    ui = UIRenderer(296, 128)
+    compose = Composer(296, 128)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     frames = {}
-    for name, data, now in STATES:
-        alerts = evaluate_alerts(data["stats"])
-        if data["error"]:
-            alerts.insert(0, f"API ERR: {data['error']}")
-        image = ui.render_frame(data, alerts, is_blinking=blink, now=now, invert=invert)
-        image.save(out_dir / f"{name}.png")
-        frames[name] = image
+    for name, screen in STATES:
+        if blink:
+            screen = screen.showing("blink")
+        frames[name] = compose(World(screen), invert=invert)
 
-    for name, image in extra_frames(invert=invert).items():
+    for name, screen in EXTRA:
+        frames[name] = compose(World(screen), invert=invert)
+
+    for name, image in frames.items():
         image.save(out_dir / f"{name}.png")
-        frames[name] = image
 
     return frames
 

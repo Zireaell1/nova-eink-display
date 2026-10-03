@@ -1,6 +1,5 @@
 from datetime import datetime
 from pathlib import Path
-from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -10,6 +9,7 @@ from nova_eink_display import main
 from nova_eink_display.display import SimulatedDisplay
 from nova_eink_display.metrics import Metrics
 from nova_eink_display.state import WearState
+from nova_eink_display.world import World
 
 TZ = ZoneInfo("Europe/Warsaw")
 LIMIT = 16
@@ -21,11 +21,8 @@ class Client:
         return {"stats": {"cpu": 10.0, "mem": 40.0}, "error": None, "missing": []}
 
 
-class UI:
-    character = SimpleNamespace(last_mood="happy")
-
-    def render_frame(self, data, alerts, is_blinking=False, now=None):
-        return Image.new("1", (296, 128), 0 if is_blinking else 255)
+def compose(world: World) -> Image.Image:
+    return Image.new("1", (296, 128), 0 if world.screen.frame == "blink" else 255)
 
 
 @pytest.fixture
@@ -33,7 +30,7 @@ def dashboard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> main.Dashboard
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main.random, "random", lambda: 0.0)
     monkeypatch.setattr(main, "MAX_PARTIAL_REFRESHES", LIMIT)
-    return main.Dashboard(SimulatedDisplay(), UI(), Client(), TZ, WearState(None))
+    return main.Dashboard(SimulatedDisplay(), compose, Client(), TZ, WearState(None))
 
 
 def run_tick(dashboard: main.Dashboard) -> bool:

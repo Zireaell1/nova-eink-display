@@ -1,9 +1,11 @@
 import datetime
 import textwrap
+from collections.abc import Mapping
 
 from PIL import ImageDraw
 
 from nova_eink_display.checks import Check, State, evaluate_checks, summarise
+from nova_eink_display.world import Screen
 
 from .base_screen import BaseScreen, theme
 
@@ -25,7 +27,7 @@ class MainScreen(BaseScreen):
         return f"{hours}h"
 
     @staticmethod
-    def format_ups(stats: dict[str, float]) -> str:
+    def format_ups(stats: Mapping[str, float]) -> str:
         on_battery = stats.get("ups_on_battery")
         runtime = stats.get("ups_runtime")
         charge = stats.get("ups_charge")
@@ -204,28 +206,20 @@ class MainScreen(BaseScreen):
 
         self.draw_panel(draw, "OFFLINE", [f"SINCE {now.strftime('%H:%M')}"])
 
-    def draw(
-        self,
-        draw: ImageDraw.ImageDraw,
-        data: dict,
-        active_alerts: list[str] | None = None,
-        now: datetime.datetime | None = None,
-    ) -> None:
-        if active_alerts is None:
-            active_alerts = []
-
+    def draw(self, draw: ImageDraw.ImageDraw, screen: Screen) -> None:
         layout = self.layout
-        stats = data.get("stats", {})
-        sys_error = data.get("error")
+        stats = screen.stats
+        sys_error = screen.error
+        active_alerts = list(screen.alerts)
 
-        self.draw_header(draw, now=now)
+        self.draw_header(draw, now=screen.now)
 
         self.draw_footer(
             draw, self.format_ups(stats), self.format_uptime(stats.get("uptime"))
         )
 
         if sys_error:
-            self.draw_error_panel(draw, sys_error, data.get("error_since"))
+            self.draw_error_panel(draw, sys_error, screen.error_since)
             return
 
         if active_alerts:
