@@ -18,15 +18,30 @@ DAY = datetime.datetime(2026, 3, 17, 14, 5, tzinfo=RENDER_TZ)
 OK = {
     "cpu": 12.3,
     "mem": 41.7,
-    "ups_charge": 100.0,
     "uptime": 950000.0,
+    "ups_on_battery": 0.0,
+    "ups_charge": 100.0,
+    "ups_runtime": 2520.0,
     "backup_status": 1.0,
+    "backup_age": 14400.0,
+    "updates_pending": 0.0,
+    "updates_security": 0.0,
+    "reboot_required": 0.0,
+    "services_total": 18.0,
+    "services_bad": 0.0,
+    "cert_days": 41.0,
 }
 
+SECURITY = {"updates_pending": 14.0, "updates_security": 3.0}
 
-def state(name, stats, error=None, now=DAY):
+
+def state(name, stats, error=None, now=DAY, since=None):
     missing = sorted(set(QUERIES) - set(stats))
-    return name, {"stats": stats, "error": error, "missing": missing}, now
+    data = {"stats": stats, "error": error, "missing": missing, "error_since": since}
+    return name, data, now
+
+
+OUTAGE = DAY.replace(hour=11, minute=42)
 
 
 STATES = [
@@ -34,32 +49,77 @@ STATES = [
     state("nominal", OK),
     state("zero", {**OK, "cpu": 0.0, "mem": 0.0, "uptime": 60.0}),
     state("full", {**OK, "cpu": 100.0, "mem": 99.6}),
+    # --- status column ----------------------------------------------------
+    state("updates-pending", {**OK, "updates_pending": 14.0}),
+    state("updates-security", {**OK, **SECURITY}),
+    state("reboot-pending", {**OK, "reboot_required": 1.0}),
+    state(
+        "notice-both",
+        {**OK, **SECURITY, "reboot_required": 1.0},
+    ),
+    state("services-down", {**OK, "services_bad": 2.0}),
+    state("cert-expiring", {**OK, "cert_days": 6.0}),
+    state("backup-stale", {**OK, "backup_age": 180000.0}),
+    state(
+        "many-bad",
+        {
+            **OK,
+            **SECURITY,
+            "services_bad": 1.0,
+            "reboot_required": 1.0,
+            "cert_days": 4.0,
+        },
+    ),
     # --- absent metrics ---------------------------------------------------
-    state("missing-ups", {k: v for k, v in OK.items() if k != "ups_charge"}),
-    state("missing-backup", {k: v for k, v in OK.items() if k != "backup_status"}),
+    state(
+        "missing-ups",
+        {
+            k: v
+            for k, v in OK.items()
+            if k not in ("ups_charge", "ups_on_battery", "ups_runtime")
+        },
+    ),
+    state(
+        "missing-backup",
+        {k: v for k, v in OK.items() if k not in ("backup_status", "backup_age")},
+    ),
     state("missing-uptime", {k: v for k, v in OK.items() if k != "uptime"}),
     state("missing-all", {}),
     # --- alerts -----------------------------------------------------------
     state("alert-backup", {**OK, "backup_status": 0.0}),
-    state("alert-ups", {**OK, "ups_charge": 82.0}),
+    state(
+        "alert-ups",
+        {**OK, "ups_on_battery": 1.0, "ups_charge": 82.0, "ups_runtime": 720.0},
+    ),
     state("alert-many", {**OK, "cpu": 97.0, "mem": 95.0, "backup_status": 0.0}),
+    state(
+        "alert-all",
+        {
+            **OK,
+            "ups_on_battery": 1.0,
+            "ups_runtime": 720.0,
+            "cpu": 97.0,
+            "mem": 95.0,
+            "backup_status": 0.0,
+        },
+    ),
     # --- transport failures ----------------------------------------------
-    state("err-unreachable", {}, "Prometheus Unreachable"),
-    state("err-query", {}, "Query Error"),
+    state("err-unreachable", {}, "Prometheus Unreachable", since=OUTAGE),
+    state("err-query", {}, "Query Error", since=OUTAGE),
+    state("err-no-since", {}, "Parse Error"),
     # --- character moods, pinned by clock ---------------------------------
     state("mood-sleep", OK, now=DAY.replace(hour=2)),
     state("mood-coffee", OK, now=DAY.replace(hour=7)),
     state("mood-salute", {**OK, "uptime": 120.0}),
     state("mood-working", {**OK, "cpu": 88.0}),
     state("mood-concerned", {**OK, "cpu": 78.0}),
-    # The idle pool is picked by random.Random(f"{date}_{hour}_{minute//10}"),
-    # so a pinned clock pins the reaction. These three cover the whole pool.
     state("mood-happy", OK, now=DAY.replace(hour=9, minute=55)),
     state("mood-music", OK, now=DAY.replace(hour=9, minute=5)),
     state("mood-smug", OK, now=DAY.replace(hour=9, minute=25)),
     # --- hostile values ---------------------------------------------------
     state("odd-values", {**OK, "cpu": 80.0, "mem": -3.0, "uptime": -5.0}),
-    state("threshold-edge", {**OK, "cpu": 90.0, "mem": 89.9}),
+    state("threshold-edge", {**OK, "cpu": 90.4, "mem": 89.6}),
+    state("threshold-crossed", {**OK, "cpu": 90.6, "mem": 89.6}),
 ]
 
 

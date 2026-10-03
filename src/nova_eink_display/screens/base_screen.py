@@ -38,7 +38,6 @@ class BaseScreen:
         self,
         draw: ImageDraw.ImageDraw,
         title: str = "root@nova:~#",
-        invert: bool = False,
         now: datetime.datetime | None = None,
         clock: str | None = None,
     ) -> None:
@@ -47,8 +46,8 @@ class BaseScreen:
             clock = now.strftime("%H:%M")
 
         layout = self.layout
-        bg_color = 255 if invert else 0
-        fg_color = 0 if invert else 255
+        bg_color = 0
+        fg_color = 255
 
         draw.rectangle((0, 0, layout.width, layout.header_bottom), fill=bg_color)
 
@@ -70,15 +69,10 @@ class BaseScreen:
     def draw_footer(
         self,
         draw: ImageDraw.ImageDraw,
-        ups_val: float | None,
+        ups: str = "UPS:[ -- ]",
         uptime: str = "--",
     ) -> None:
-        if ups_val is None:
-            left_text = "UPS:[ -- ]"
-        else:
-            status = "OK" if ups_val > 90 else "WARN"
-            left_text = f"UPS:[{status}] {ups_val:2.0f}%"
-
+        left_text = ups
         right_text = f"UP: {uptime}"
 
         layout = self.layout

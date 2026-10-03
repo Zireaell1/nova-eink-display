@@ -40,7 +40,17 @@ TIMEZONE = os.getenv("TIMEZONE", "Europe/Warsaw")
 QUERIES = {
     "cpu": f'avg(100 - (avg(rate(node_cpu_seconds_total{{mode="idle", instance="{INSTANCE}"}}[5m])) * 100))',
     "mem": f'avg((1 - (node_memory_MemAvailable_bytes{{instance="{INSTANCE}"}} / node_memory_MemTotal_bytes{{instance="{INSTANCE}"}})) * 100)',
-    "ups_charge": "min(network_ups_tools_battery_charge)",
     "uptime": f'max(time() - node_boot_time_seconds{{instance="{INSTANCE}"}})',
+    "ups_on_battery": 'max(network_ups_tools_ups_status{flag="OB"})',
+    "ups_charge": "min(network_ups_tools_battery_charge)",
+    "ups_runtime": "min(network_ups_tools_battery_runtime)",
+    # Status column
     "backup_status": "min(homelab_backup_success)",
+    "backup_age": "time() - max(homelab_backup_last_run_timestamp_seconds)",
+    "updates_pending": f'sum(homelab_updates_pending{{instance="{INSTANCE}", severity="all"}})',
+    "updates_security": f'sum(homelab_updates_pending{{instance="{INSTANCE}", severity="security"}})',
+    "reboot_required": f'max(homelab_updates_reboot_required{{instance="{INSTANCE}"}})',
+    "services_total": "count(podman_container_info)",
+    "services_bad": "count(podman_container_health == 1) or vector(0)",
+    "cert_days": "(min(max by (domain) (homelab_cert_not_after_timestamp_seconds)) - time()) / 86400",
 }
