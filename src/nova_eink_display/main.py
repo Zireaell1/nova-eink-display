@@ -1,21 +1,15 @@
 import logging
 import random
 import signal
-import threading
-import time
-from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from nova_eink_display.clock import Clock
 from nova_eink_display.compose import Composer
 from nova_eink_display.config import (
-    BLINK_PROBABILITY,
-    BLINK_SECONDS,
     FETCH_INTERVAL,
     MAX_PARTIAL_REFRESHES,
     METRICS_ADDRESS,
     METRICS_PORT,
-    NIGHT_END_HOUR,
-    NIGHT_START_HOUR,
     PREVIEW_ADDRESS,
     PREVIEW_PORT,
     PROMETHEUS_API_PASSWORD,
@@ -29,15 +23,13 @@ from nova_eink_display.config import (
     TIMEZONE,
 )
 from nova_eink_display.display import EPDDisplay, SimulatedDisplay
+from nova_eink_display.loop import Inbox, Loop, Stop
 from nova_eink_display.metrics import METRICS, PREVIEW_ROUTES, serve
 from nova_eink_display.panel import Panel
 from nova_eink_display.prometheus import PrometheusClient
 from nova_eink_display.state import WearState, state_path
-from nova_eink_display.world import Screen, World
 
 logger = logging.getLogger(__name__)
-
-MAX_CONSECUTIVE_FAILURES = 5
 
 
 def build_display():
@@ -49,141 +41,6 @@ def build_display():
     except Exception:
         logger.exception("Display hardware unavailable, falling back to simulation")
         return SimulatedDisplay()
-
-
-def is_night(now):
-    if NIGHT_START_HOUR == NIGHT_END_HOUR:
-        return False
-
-    if NIGHT_START_HOUR < NIGHT_END_HOUR:
-        return NIGHT_START_HOUR <= now.hour < NIGHT_END_HOUR
-
-    return now.hour >= NIGHT_START_HOUR or now.hour < NIGHT_END_HOUR
-
-
-class Dashboard:
-    def __init__(self, panel, compose, client, tz):
-        self.panel = panel
-        self.compose = compose
-        self.client = client
-        self.tz = tz
-
-        self.stopping = threading.Event()
-        self.previous_alerts = None
-        self.sleeping = False
-        self.failures = 0
-        self.error_since = None
-        self.world = None
-
-    def request_stop(self, signum, frame):
-        logger.info("Stop requested, finishing current tick...")
-        self.stopping.set()
-
-    def tick(self, now):
-        started = time.monotonic()
-        data = self.client.fetch_all()
-        METRICS.record_fetch(
-            time.monotonic() - started,
-            data.get("error"),
-            len(data.get("missing", [])),
-        )
-
-        error = data.get("error")
-        self.error_since = (self.error_since or now) if error else None
-
-        screen = Screen.dashboard(data, now, self.error_since)
-        alerts = screen.alerts
-
-        night = not alerts and is_night(now)
-
-        try:
-            if night and self.sleeping:
-                return None, None
-
-            if night:
-                self.world = World(Screen.asleep(now, NIGHT_END_HOUR))
-                frame = self.compose(self.world)
-                self.panel.show(frame, full=True)
-                self.previous_alerts = alerts
-
-                self.panel.sleep()
-                self.sleeping = True
-                logger.info("Night mode: panel asleep until %02d:00", NIGHT_END_HOUR)
-                return frame, None
-
-            self.world = World(screen)
-            frame = self.compose(self.world)
-
-            self.panel.show(frame, full=alerts != self.previous_alerts)
-            self.previous_alerts = alerts
-
-            self.sleeping = False
-
-            if (
-                alerts
-                or self.panel.partials_left < 2
-                or random.random() >= BLINK_PROBABILITY
-            ):
-                return frame, None
-
-            blink = self.compose(World(screen.showing("blink")))
-
-            if blink.tobytes() == frame.tobytes():
-                return frame, None
-
-            return frame, blink
-        finally:
-            METRICS.record_tick(len(alerts), self.character_mood, self.panel.asleep)
-
-    def run(self):
-        while not self.stopping.is_set():
-            now = datetime.now(self.tz)
-
-            try:
-                frame, blink = self.tick(now)
-                self.failures = 0
-            except Exception:
-                self.failures += 1
-                METRICS.record_failure()
-                logger.exception("Tick failed (%d in a row)", self.failures)
-                if self.failures >= MAX_CONSECUTIVE_FAILURES:
-                    raise
-                frame, blink = None, None
-
-            next_tick = (
-                time.monotonic() + FETCH_INTERVAL - (time.time() % FETCH_INTERVAL)
-            )
-
-            if blink is not None:
-                self.blink(frame, blink, next_tick)
-
-            self.stopping.wait(max(0.0, next_tick - time.monotonic()))
-
-    @property
-    def character_mood(self):
-        return self.world.screen.pose if self.world else "unknown"
-
-    def shutdown(self):
-        self.world = World(Screen.offline(datetime.now(self.tz)))
-        frame = self.compose(self.world)
-        self.panel.show(frame, full=True)
-        self.panel.sleep()
-
-    def blink(self, frame, blink_frame, next_tick):
-        budget = next_tick - time.monotonic() - BLINK_SECONDS - 1.0
-        if budget <= 0:
-            return
-
-        if self.stopping.wait(random.uniform(0, budget)):
-            return
-
-        self.panel.show(blink_frame)
-        METRICS.record_blink()
-
-        if self.stopping.wait(BLINK_SECONDS):
-            return
-
-        self.panel.show(frame)
 
 
 def main():
@@ -212,9 +69,11 @@ def main():
     METRICS.record_start(wear.writable)
 
     panel = Panel(display, wear, MAX_PARTIAL_REFRESHES)
+    clock = Clock(ZoneInfo(TIMEZONE))
+    inbox = Inbox(clock)
 
     w, h = display.dimensions
-    dashboard = Dashboard(
+    loop = Loop(
         panel,
         Composer(w, h),
         PrometheusClient(
@@ -224,11 +83,16 @@ def main():
             PROMETHEUS_API_PASSWORD,
             timeout=(PROMETHEUS_CONNECT_TIMEOUT, PROMETHEUS_READ_TIMEOUT),
         ),
-        ZoneInfo(TIMEZONE),
+        clock,
+        inbox,
+        rng=random.Random(),
     )
 
-    signal.signal(signal.SIGTERM, dashboard.request_stop)
-    signal.signal(signal.SIGINT, dashboard.request_stop)
+    def request_stop(signum, frame):
+        inbox.put(Stop())
+
+    signal.signal(signal.SIGTERM, request_stop)
+    signal.signal(signal.SIGINT, request_stop)
 
     serve(METRICS_ADDRESS, METRICS_PORT)
     serve(PREVIEW_ADDRESS, PREVIEW_PORT, PREVIEW_ROUTES)
@@ -237,11 +101,11 @@ def main():
     wear.save(METRICS.snapshot())
 
     try:
-        dashboard.run()
+        loop.run()
     finally:
         logger.info("Shutting down...")
         try:
-            dashboard.shutdown()
+            loop.shutdown()
         except Exception:
             logger.exception("Shutdown failed; the panel may still be powered")
 

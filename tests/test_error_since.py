@@ -1,75 +1,41 @@
 from datetime import datetime, timedelta
-from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pytest
-from PIL import Image
+from fakes import NOON, Client, build, run_until
 
-from nova_eink_display import main
-from nova_eink_display.display import SimulatedDisplay
-from nova_eink_display.panel import Panel
 from nova_eink_display.screens.main_screen import MainScreen
-from nova_eink_display.state import WearState
-from nova_eink_display.world import World
 
-TZ = ZoneInfo("Europe/Warsaw")
-NOON = datetime(2026, 3, 17, 12, 0, tzinfo=TZ)
 MINUTE = timedelta(minutes=1)
+HALF = timedelta(seconds=30)
 
 
-class Client:
-    def __init__(self) -> None:
-        self.error: str | None = None
+class NeverBlink:
+    def random(self) -> float:
+        return 1.0
 
-    def fetch_all(self) -> dict:
-        if self.error:
-            return {"stats": {}, "error": self.error, "missing": []}
-        return {"stats": {"cpu": 10.0}, "error": None, "missing": []}
+    def uniform(self, a: float, b: float) -> float:
+        return a
 
 
-class Compose:
-    def __init__(self) -> None:
-        self.seen: list[datetime | None] = []
-
-    def __call__(self, world: World) -> Image.Image:
-        self.seen.append(world.screen.error_since)
-        return Image.new("1", (296, 128), 255)
-
-
-@pytest.fixture
-def parts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(main.random, "random", lambda: 1.0)
-    client, ui = Client(), Compose()
-    panel = Panel(SimulatedDisplay(), WearState(None), 16)
-    dashboard = main.Dashboard(panel, ui, client, TZ)
-    return dashboard, client, ui
+def ticks(script: list[str | None]) -> list[datetime | None]:
+    client = Client()
+    loop, inbox, _ = build(client=client, rng=NeverBlink())
+    for minute, error in enumerate(script):
+        client.error = error
+        run_until(loop, inbox, NOON + minute * MINUTE + HALF)
+    return [world.screen.error_since for world in loop.compose.worlds]
 
 
-def test_since_is_the_first_failed_tick_and_clears_on_success(parts) -> None:
-    dashboard, client, ui = parts
+def test_since_is_the_first_failed_tick_and_clears_on_success() -> None:
+    down = "Prometheus Unreachable"
 
-    dashboard.tick(NOON)
-    client.error = "Prometheus Unreachable"
-    dashboard.tick(NOON + MINUTE)
-    dashboard.tick(NOON + 2 * MINUTE)
-    client.error = None
-    dashboard.tick(NOON + 3 * MINUTE)
-
-    assert ui.seen == [None, NOON + MINUTE, NOON + MINUTE, None]
+    assert ticks([None, down, down, None]) == [None, NOON + MINUTE, NOON + MINUTE, None]
 
 
-def test_a_new_outage_starts_a_new_since(parts) -> None:
-    dashboard, client, ui = parts
+def test_a_new_outage_starts_a_new_since() -> None:
+    since = ticks(["Query Error", None, "Query Error"])
 
-    client.error = "Query Error"
-    dashboard.tick(NOON)
-    client.error = None
-    dashboard.tick(NOON + MINUTE)
-    client.error = "Query Error"
-    dashboard.tick(NOON + 2 * MINUTE)
-
-    assert ui.seen[-1] == NOON + 2 * MINUTE
+    assert since[-1] == NOON + 2 * MINUTE
 
 
 @pytest.mark.parametrize(

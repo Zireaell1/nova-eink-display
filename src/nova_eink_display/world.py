@@ -1,4 +1,5 @@
 import datetime
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
@@ -73,7 +74,17 @@ class Screen:
 
 
 @dataclass(frozen=True)
+class Motion:
+    """The scheduler's state: the frames still to play and when to show the
+    next one. `next_wake` is wall-clock seconds; inf means nothing pending."""
+
+    steps: tuple[tuple[str, float], ...] = ()
+    next_wake: float = math.inf
+
+
+@dataclass(frozen=True)
 class World:
-    """The whole state."""
+    """The whole state. Presence and memory join as their phases land."""
 
     screen: Screen
+    motion: Motion = Motion()

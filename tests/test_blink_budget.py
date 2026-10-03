@@ -1,67 +1,47 @@
-from datetime import datetime
-from pathlib import Path
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 import pytest
-from PIL import Image
+from fakes import NOON, build, run_until
 
-from nova_eink_display import main
-from nova_eink_display.display import SimulatedDisplay
+from nova_eink_display import loop as loop_module
 from nova_eink_display.metrics import Metrics
-from nova_eink_display.panel import Panel
-from nova_eink_display.state import WearState
-from nova_eink_display.world import World
 
-TZ = ZoneInfo("Europe/Warsaw")
 LIMIT = 16
-NOON = datetime(2026, 3, 17, 12, 0, tzinfo=TZ)
+SECOND = timedelta(seconds=1)
+MINUTE = timedelta(minutes=1)
 
 
-class Client:
-    def fetch_all(self) -> dict:
-        return {"stats": {"cpu": 10.0, "mem": 40.0}, "error": None, "missing": []}
+class AlwaysBlink:
+    def random(self) -> float:
+        return 0.0
 
-
-def compose(world: World) -> Image.Image:
-    return Image.new("1", (296, 128), 0 if world.screen.frame == "blink" else 255)
-
-
-def build(limit: int = LIMIT, metrics: Metrics | None = None) -> main.Dashboard:
-    panel = Panel(SimulatedDisplay(), WearState(None), limit, metrics or Metrics())
-    return main.Dashboard(panel, compose, Client(), TZ)
-
-
-@pytest.fixture(autouse=True)
-def always_blink(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(main.random, "random", lambda: 0.0)
+    def uniform(self, a: float, b: float) -> float:
+        return a
 
 
 @pytest.fixture
-def dashboard() -> main.Dashboard:
-    return build()
+def metrics(monkeypatch: pytest.MonkeyPatch) -> Metrics:
+    metrics = Metrics()
+    monkeypatch.setattr(loop_module, "METRICS", metrics)
+    return metrics
 
 
-def run_tick(dashboard: main.Dashboard) -> bool:
-    frame, blink = dashboard.tick(NOON)
-    if blink is None:
-        return False
-
-    dashboard.panel.show(blink)
-    dashboard.panel.show(frame)
-    return True
+def peak_partials(calls: list[str]) -> int:
+    peak = run = 0
+    for call in calls:
+        run = 0 if call == "full" else run + (call == "partial")
+        peak = max(peak, run)
+    return peak
 
 
 @pytest.mark.parametrize("limit", [7, 8, 9, 16])
-def test_partials_never_exceed_the_limit(limit: int) -> None:
-    dashboard = build(limit)
+def test_partials_never_exceed_the_limit(metrics: Metrics, limit: int) -> None:
+    loop, inbox, driver = build(limit=limit, rng=AlwaysBlink(), metrics=metrics)
 
-    peak = 0
-    for _ in range(200):
-        run_tick(dashboard)
-        peak = max(peak, dashboard.panel.partials)
+    run_until(loop, inbox, NOON + 200 * MINUTE)
 
-    assert peak <= limit
+    assert metrics.blinks_total > 0
+    assert peak_partials(driver.calls) <= limit
 
 
 @pytest.mark.parametrize(
@@ -73,29 +53,23 @@ def test_partials_never_exceed_the_limit(limit: int) -> None:
     ],
 )
 def test_a_blink_needs_room_for_both_partials(
-    dashboard: main.Dashboard, before: int, blinks: bool
+    metrics: Metrics, before: int, blinks: bool
 ) -> None:
-    run_tick(dashboard)
-    dashboard.panel.partials = before
+    loop, inbox, _ = build(limit=LIMIT, rng=AlwaysBlink(), metrics=metrics)
+    run_until(loop, inbox, NOON + 30 * SECOND)
+    loop.panel.partials = before
+    blinked = metrics.blinks_total
 
-    assert run_tick(dashboard) is blinks
+    run_until(loop, inbox, NOON + 90 * SECOND)
+
+    assert (metrics.blinks_total > blinked) is blinks
 
 
-def test_a_blink_is_counted_once_and_costs_two_partials(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(main, "BLINK_SECONDS", 0)
-    monkeypatch.setattr(main.random, "uniform", lambda a, b: 0)
-    metrics = Metrics()
-    monkeypatch.setattr(main, "METRICS", metrics)
-    dashboard = build(metrics=metrics)
+def test_a_blink_is_counted_once_and_costs_two_partials(metrics: Metrics) -> None:
+    loop, inbox, driver = build(rng=AlwaysBlink(), metrics=metrics)
 
-    run_tick(dashboard)
-    frame, blink = dashboard.tick(NOON)
-    assert blink is not None
-    partials = metrics.refresh_total["partial"]
+    run_until(loop, inbox, NOON + 30 * SECOND)
 
-    dashboard.blink(frame, blink, next_tick=main.time.monotonic() + 30)
-
+    assert driver.calls == ["full", "partial", "partial"]
     assert metrics.blinks_total == 1
-    assert metrics.refresh_total["partial"] - partials == 2
+    assert metrics.refresh_total == {"full": 1, "partial": 2}
