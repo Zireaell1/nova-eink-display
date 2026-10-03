@@ -30,6 +30,7 @@ from nova_eink_display.config import (
 )
 from nova_eink_display.display import EPDDisplay, SimulatedDisplay
 from nova_eink_display.metrics import METRICS, PREVIEW_ROUTES, serve
+from nova_eink_display.panel import Panel
 from nova_eink_display.prometheus import PrometheusClient
 from nova_eink_display.state import WearState, state_path
 from nova_eink_display.world import Screen, World
@@ -61,12 +62,11 @@ def is_night(now):
 
 
 class Dashboard:
-    def __init__(self, display, compose, client, tz, wear):
-        self.display = display
+    def __init__(self, panel, compose, client, tz):
+        self.panel = panel
         self.compose = compose
         self.client = client
         self.tz = tz
-        self.wear = wear
 
         self.stopping = threading.Event()
         self.previous_alerts = None
@@ -78,15 +78,6 @@ class Dashboard:
     def request_stop(self, signum, frame):
         logger.info("Stop requested, finishing current tick...")
         self.stopping.set()
-
-    def render(self, frame, full_refresh=False):
-        before = self.display.partial_count
-        self.display.render(frame, full_refresh=full_refresh)
-
-        kind = "partial" if self.display.partial_count > before else "full"
-        METRICS.record_refresh(kind, self.display.partial_count)
-        METRICS.record_frame(frame)
-        self.wear.save(METRICS.snapshot())
 
     def tick(self, now):
         started = time.monotonic()
@@ -112,10 +103,10 @@ class Dashboard:
             if night:
                 self.world = World(Screen.asleep(now, NIGHT_END_HOUR))
                 frame = self.compose(self.world)
-                self.render(frame, full_refresh=True)
+                self.panel.show(frame, full=True)
                 self.previous_alerts = alerts
 
-                self.display.sleep()
+                self.panel.sleep()
                 self.sleeping = True
                 logger.info("Night mode: panel asleep until %02d:00", NIGHT_END_HOUR)
                 return frame, None
@@ -123,16 +114,16 @@ class Dashboard:
             self.world = World(screen)
             frame = self.compose(self.world)
 
-            alerts_changed = alerts != self.previous_alerts
-            ghosted = self.display.partial_count >= MAX_PARTIAL_REFRESHES
-
-            self.render(frame, full_refresh=alerts_changed or ghosted)
+            self.panel.show(frame, full=alerts != self.previous_alerts)
             self.previous_alerts = alerts
 
             self.sleeping = False
 
-            budget_left = MAX_PARTIAL_REFRESHES - self.display.partial_count
-            if alerts or budget_left < 2 or random.random() >= BLINK_PROBABILITY:
+            if (
+                alerts
+                or self.panel.partials_left < 2
+                or random.random() >= BLINK_PROBABILITY
+            ):
                 return frame, None
 
             blink = self.compose(World(screen.showing("blink")))
@@ -142,7 +133,7 @@ class Dashboard:
 
             return frame, blink
         finally:
-            METRICS.record_tick(len(alerts), self.character_mood, self.display.asleep)
+            METRICS.record_tick(len(alerts), self.character_mood, self.panel.asleep)
 
     def run(self):
         while not self.stopping.is_set():
@@ -175,8 +166,8 @@ class Dashboard:
     def shutdown(self):
         self.world = World(Screen.offline(datetime.now(self.tz)))
         frame = self.compose(self.world)
-        self.render(frame, full_refresh=True)
-        self.display.sleep()
+        self.panel.show(frame, full=True)
+        self.panel.sleep()
 
     def blink(self, frame, blink_frame, next_tick):
         budget = next_tick - time.monotonic() - BLINK_SECONDS - 1.0
@@ -186,13 +177,13 @@ class Dashboard:
         if self.stopping.wait(random.uniform(0, budget)):
             return
 
-        self.render(blink_frame)
+        self.panel.show(blink_frame)
         METRICS.record_blink()
 
         if self.stopping.wait(BLINK_SECONDS):
             return
 
-        self.render(frame)
+        self.panel.show(frame)
 
 
 def main():
@@ -220,9 +211,11 @@ def main():
     METRICS.restore(saved.get("refresh_total"), saved.get("starts_total"))
     METRICS.record_start(wear.writable)
 
+    panel = Panel(display, wear, MAX_PARTIAL_REFRESHES)
+
     w, h = display.dimensions
     dashboard = Dashboard(
-        display,
+        panel,
         Composer(w, h),
         PrometheusClient(
             PROMETHEUS_URL,
@@ -232,7 +225,6 @@ def main():
             timeout=(PROMETHEUS_CONNECT_TIMEOUT, PROMETHEUS_READ_TIMEOUT),
         ),
         ZoneInfo(TIMEZONE),
-        wear,
     )
 
     signal.signal(signal.SIGTERM, dashboard.request_stop)
@@ -241,7 +233,7 @@ def main():
     serve(METRICS_ADDRESS, METRICS_PORT)
     serve(PREVIEW_ADDRESS, PREVIEW_PORT, PREVIEW_ROUTES)
 
-    display.init()
+    panel.start()
     wear.save(METRICS.snapshot())
 
     try:

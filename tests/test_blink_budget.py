@@ -8,6 +8,7 @@ from PIL import Image
 from nova_eink_display import main
 from nova_eink_display.display import SimulatedDisplay
 from nova_eink_display.metrics import Metrics
+from nova_eink_display.panel import Panel
 from nova_eink_display.state import WearState
 from nova_eink_display.world import World
 
@@ -25,12 +26,20 @@ def compose(world: World) -> Image.Image:
     return Image.new("1", (296, 128), 0 if world.screen.frame == "blink" else 255)
 
 
-@pytest.fixture
-def dashboard(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> main.Dashboard:
+def build(limit: int = LIMIT, metrics: Metrics | None = None) -> main.Dashboard:
+    panel = Panel(SimulatedDisplay(), WearState(None), limit, metrics or Metrics())
+    return main.Dashboard(panel, compose, Client(), TZ)
+
+
+@pytest.fixture(autouse=True)
+def always_blink(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main.random, "random", lambda: 0.0)
-    monkeypatch.setattr(main, "MAX_PARTIAL_REFRESHES", LIMIT)
-    return main.Dashboard(SimulatedDisplay(), compose, Client(), TZ, WearState(None))
+
+
+@pytest.fixture
+def dashboard() -> main.Dashboard:
+    return build()
 
 
 def run_tick(dashboard: main.Dashboard) -> bool:
@@ -38,21 +47,19 @@ def run_tick(dashboard: main.Dashboard) -> bool:
     if blink is None:
         return False
 
-    dashboard.render(blink)
-    dashboard.render(frame)
+    dashboard.panel.show(blink)
+    dashboard.panel.show(frame)
     return True
 
 
 @pytest.mark.parametrize("limit", [7, 8, 9, 16])
-def test_partials_never_exceed_the_limit(
-    dashboard: main.Dashboard, monkeypatch: pytest.MonkeyPatch, limit: int
-) -> None:
-    monkeypatch.setattr(main, "MAX_PARTIAL_REFRESHES", limit)
+def test_partials_never_exceed_the_limit(limit: int) -> None:
+    dashboard = build(limit)
 
     peak = 0
     for _ in range(200):
         run_tick(dashboard)
-        peak = max(peak, dashboard.display.partial_count)
+        peak = max(peak, dashboard.panel.partials)
 
     assert peak <= limit
 
@@ -69,18 +76,19 @@ def test_a_blink_needs_room_for_both_partials(
     dashboard: main.Dashboard, before: int, blinks: bool
 ) -> None:
     run_tick(dashboard)
-    dashboard.display.partial_count = before
+    dashboard.panel.partials = before
 
     assert run_tick(dashboard) is blinks
 
 
 def test_a_blink_is_counted_once_and_costs_two_partials(
-    dashboard: main.Dashboard, monkeypatch: pytest.MonkeyPatch
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(main, "BLINK_SECONDS", 0)
     monkeypatch.setattr(main.random, "uniform", lambda a, b: 0)
     metrics = Metrics()
     monkeypatch.setattr(main, "METRICS", metrics)
+    dashboard = build(metrics=metrics)
 
     run_tick(dashboard)
     frame, blink = dashboard.tick(NOON)

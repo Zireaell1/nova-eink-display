@@ -7,6 +7,7 @@ from PIL import Image
 
 from nova_eink_display import main
 from nova_eink_display.display import SimulatedDisplay
+from nova_eink_display.panel import Panel
 from nova_eink_display.screens.main_screen import MainScreen
 from nova_eink_display.state import WearState
 from nova_eink_display.world import World
@@ -40,7 +41,8 @@ def parts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(main.random, "random", lambda: 1.0)
     client, ui = Client(), Compose()
-    dashboard = main.Dashboard(SimulatedDisplay(), ui, client, TZ, WearState(None))
+    panel = Panel(SimulatedDisplay(), WearState(None), 16)
+    dashboard = main.Dashboard(panel, ui, client, TZ)
     return dashboard, client, ui
 
 
