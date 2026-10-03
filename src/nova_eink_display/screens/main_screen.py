@@ -71,12 +71,15 @@ class MainScreen(BaseScreen):
     @staticmethod
     def status_banner(checks: list[Check]) -> str:
         bad, known = summarise(checks)
+        total = len(checks)
 
         if not known:
             return "NO DATA"
         if bad:
-            return f"{bad} OF {known} BAD"
-        return f"ALL {known} OK"
+            return f"{bad} OF {total} BAD"
+        if known < total:
+            return f"{known} OF {total} OK"
+        return f"ALL {total} OK"
 
     def draw_status(self, draw: ImageDraw.ImageDraw, checks: list[Check]) -> None:
         layout = self.layout
@@ -91,13 +94,8 @@ class MainScreen(BaseScreen):
             anchor="mm",
         )
 
-        rows = layout.status_rows
-        bad, _ = summarise(checks)
-        truncate = bad and len(checks) > rows
-        shown = checks[: rows - 1] if truncate else checks[:rows]
-
         y = top + 15
-        for check in shown:
+        for check in checks[: layout.status_rows]:
             draw.text(
                 (layout.column_start, y),
                 f"{'!' if check.state is State.BAD else '>'} {check.label}",
@@ -112,14 +110,6 @@ class MainScreen(BaseScreen):
                 anchor="ra",
             )
             y += layout.status_stride
-
-        if truncate:
-            draw.text(
-                (layout.column_start, y),
-                f"+ {len(checks) - len(shown)} MORE",
-                font=theme.mono,
-                fill=0,
-            )
 
     def draw_panel(
         self, draw: ImageDraw.ImageDraw, title: str, lines: list[str]

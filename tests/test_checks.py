@@ -120,10 +120,15 @@ def test_order_is_bad_then_unknown_then_notices_then_quiet() -> None:
         (OK, "ALL 5 OK"),
         ({**OK, **SECURITY, "reboot_required": 1.0}, "ALL 5 OK"),
         ({**OK, **SECURITY, "services_bad": 1.0}, "1 OF 5 BAD"),
+        ({k: v for k, v in OK.items() if k != "cert_days"}, "4 OF 5 OK"),
+        (
+            {k: v for k, v in OK.items() if k != "cert_days"} | {"services_bad": 1.0},
+            "1 OF 5 BAD",
+        ),
         ({}, "NO DATA"),
     ],
 )
-def test_banner_ignores_notices(stats: dict, banner: str) -> None:
+def test_banner_counts_out_of_every_check(stats: dict, banner: str) -> None:
     assert MainScreen.status_banner(evaluate_checks(stats)) == banner
 
 
